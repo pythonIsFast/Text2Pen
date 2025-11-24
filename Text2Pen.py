@@ -300,12 +300,13 @@ class LetterApp:
         time.sleep(0.4)
         
         rect = win32gui.GetWindowRect(hwnd)
-        canvas_x = rect[0] + 100
+        canvas_x = rect[0] + 20
         canvas_y = rect[1] + 100
-        
-        chars_per_line = int(self.chars_per_line.get())
+
         line_spacing_px = int(self.line_spacing.get())
         scale = float(self.characterSize.get())
+
+        chars_per_line = int(6 / scale)
         
         base_char_spacing_px = int(150 * scale)
         offset_x = 50
