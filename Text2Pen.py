@@ -12,7 +12,7 @@ import os
 class LetterApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Buchstaben lernen und in OneNote schreiben")
+        self.root.title("Text2Pen")
         self.root.geometry("700x600")
         
         # Letter database
@@ -43,7 +43,7 @@ class LetterApp:
         # Title
         self.title_label = tk.Label(
             self.root,
-            text=f"Lerne Buchstabe: {self.current_letter}",
+            text=f"Learning character: {self.current_letter}",
             font=('Arial', 20, 'bold')
         )
         self.title_label.pack(pady=10)
@@ -51,7 +51,7 @@ class LetterApp:
         # Info
         tk.Label(
             self.root,
-            text="Zeichne den Buchstaben über die graue Vorlage",
+            text="Draw the character shown in the background.\n",
             font=('Arial', 12)
         ).pack()
         
@@ -71,19 +71,19 @@ class LetterApp:
         button_frame = tk.Frame(self.root)
         button_frame.pack(pady=10)
         
-        tk.Button(button_frame, text="Löschen", command=self.delete_learning,
+        tk.Button(button_frame, text="Delete", command=self.delete_learning,
                   bg='#ff6b6b', fg='white', font=('Arial', 12), padx=20).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(button_frame, text="Buchstabe speichern", command=self.save_letter,
+        tk.Button(button_frame, text="Save character", command=self.save_letter,
                   bg='#4ecdc4', fg='white', font=('Arial', 12), padx=20).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(button_frame, text="Überspringen", command=self.next_letter,
+        tk.Button(button_frame, text="Skip", command=self.next_letter,
                   bg='#95a5a6', fg='white', font=('Arial', 12), padx=20).pack(side=tk.LEFT, padx=5)
         
         # Progress display
         self.progress_label = tk.Label(
             self.root,
-            text=f"Fortschritt: {len(self.letter_db)}/{self.alphabet.__len__()} Buchstaben gelernt",
+            text=f"Progression: {len(self.letter_db)}/{self.alphabet.__len__()} characters learned!",
             font=('Arial', 10)
         )
         self.progress_label.pack(pady=5)
@@ -94,7 +94,7 @@ class LetterApp:
         # Title
         tk.Label(
             self.root,
-            text="Text in OneNote schreiben",
+            text="Text2Pen - Write text in OneNote",
             font=('Arial', 20, 'bold')
         ).pack(pady=20)
         
@@ -102,9 +102,9 @@ class LetterApp:
         info_frame = tk.Frame(self.root)
         info_frame.pack(pady=5)
         
-        tk.Label(info_frame, text="Gib einen Text ein (\\n für manuellen Zeilenumbruch)",
+        tk.Label(info_frame, text="Input text below and press 'Draw in OneNote'!",
                  font=('Arial', 12)).pack()
-        tk.Label(info_frame, text="🛑 FAILSAFE: Bewege Maus in obere linke Ecke zum Stoppen!",
+        tk.Label(info_frame, text="🛑 FAILSAFE: Move mouse to the top left corner to stop!",
                  font=('Arial', 10), fg='red').pack()
         
         # Text input
@@ -127,19 +127,19 @@ class LetterApp:
         settings = tk.Frame(self.root)
         settings.pack(pady=10)
         
-        tk.Label(settings, text="Zeichen pro Zeile:", font=('Arial', 10)).grid(row=0, column=0, padx=5)
+        tk.Label(settings, text="Characters per Line:", font=('Arial', 10)).grid(row=0, column=0, padx=5)
         self.chars_per_line = tk.Spinbox(settings, from_=10, to=50, width=10, font=('Arial', 10))
         self.chars_per_line.delete(0, 'end')
         self.chars_per_line.insert(0, '25')
         self.chars_per_line.grid(row=0, column=1, padx=5)
         
-        tk.Label(settings, text="Buchstabegröße:", font=('Arial', 10)).grid(row=1, column=2, padx=5)
+        tk.Label(settings, text="Character Size:", font=('Arial', 10)).grid(row=1, column=2, padx=5)
         self.characterSize = tk.Spinbox(settings, from_=0.1, to=1, increment=0.1, width=10, font=('Arial', 10))
         self.characterSize.delete(0, 'end')
         self.characterSize.insert(0, '0.2')
         self.characterSize.grid(row=1, column=3, padx=5)
         
-        tk.Label(settings, text="Zeilenabstand:", font=('Arial', 10)).grid(row=1, column=0, padx=5)
+        tk.Label(settings, text="Line padding:", font=('Arial', 10)).grid(row=1, column=0, padx=5)
         self.line_spacing = tk.Spinbox(settings, from_=50, to=400, increment=10, width=10, font=('Arial', 10))
         self.line_spacing.delete(0, 'end')
         self.line_spacing.insert(0, '60')
@@ -149,27 +149,27 @@ class LetterApp:
         button_frame = tk.Frame(self.root)
         button_frame.pack(pady=20)
         
-        tk.Button(button_frame, text="In OneNote zeichnen", command=self.draw_text_in_onenote,
+        tk.Button(button_frame, text="Draw in OneNote", command=self.draw_text_in_onenote,
                   bg='#7719AA', fg='white', font=('Arial', 14, 'bold'),
                   padx=30, pady=10).pack(side=tk.LEFT, padx=5)
         
-        self.stop_button = tk.Button(button_frame, text="⏹ STOPP", command=self.stop_drawing_now,
+        self.stop_button = tk.Button(button_frame, text="Stop!", command=self.stop_drawing_now,
                   bg='#e74c3c', fg='white', font=('Arial', 14, 'bold'),
                   padx=20, pady=10, state='disabled')
         self.stop_button.pack(side=tk.LEFT, padx=5)
         
         # Status
-        self.status_label = tk.Label(self.root, text="Bereit zum Zeichnen!", font=('Arial', 10))
+        self.status_label = tk.Label(self.root, text="Ready to draw!", font=('Arial', 10))
         self.status_label.pack(pady=10)
         
         # Options
         options = tk.Frame(self.root)
         options.pack(pady=10)
         
-        tk.Button(options, text="Buchstaben neu lernen", command=self.reset_learning,
+        tk.Button(options, text="Relearn all characters", command=self.reset_learning,
                   bg='#e74c3c', fg='white', font=('Arial', 10)).pack(side=tk.LEFT, padx=5)
         
-        tk.Button(options, text="Einzelnen Buchstaben ändern", command=self.change_letter,
+        tk.Button(options, text="Change single character", command=self.change_letter,
                   bg='#95a5a6', fg='white', font=('Arial', 10)).pack(side=tk.LEFT, padx=5)
 
     # ---------------------------------------------------------
@@ -226,8 +226,8 @@ class LetterApp:
             self.canvas.delete('all')
             self.strokes = []
             self.draw_letter_template(self.current_letter)
-            self.title_label.config(text=f"Lerne Buchstabe: {self.current_letter.upper()}")
-            self.progress_label.config(text=f"Fortschritt: {len(self.letter_db)}/{self.alphabet.__len__()} Buchstaben gelernt")
+            self.title_label.config(text=f"Learning character: {self.current_letter}")
+            self.progress_label.config(text=f"Progression: {len(self.letter_db)}/{self.alphabet.__len__()} character learned!")
         else:
             self.learning_mode = False
             for w in self.root.winfo_children():
@@ -239,7 +239,7 @@ class LetterApp:
     # ---------------------------------------------------------
     def stop_drawing_now(self):
         self.stop_drawing = True
-        self.status_label.config(text="⏹ Zeichnen gestoppt!")
+        self.status_label.config(text="⏹ stopped drawing!")
     
     def failsafe(self):
         x, y = win32api.GetCursorPos()
@@ -254,18 +254,18 @@ class LetterApp:
     def draw_text_in_onenote(self):
         text = self.input_text.get('1.0', 'end-1c')
         if not text:
-            self.status_label.config(text="Bitte Text eingeben!")
+            self.status_label.config(text="Please input Text!")
             return
         
         # Check trained letters
         for ch in text:
             if ch and ch != " " and ch != '\n'and ch not in self.letter_db:
-                self.status_label.config(text=f"Buchstabe '{ch}' wurde nicht gelernt!")
+                self.status_label.config(text=f"Character '{ch}' not learned!")
                 return
         
         self.stop_drawing = False
         self.stop_button.config(state='normal')
-        self.status_label.config(text="Öffne jetzt OneNote, 4 Sekunden Zeit!")
+        self.status_label.config(text="Please open OneNote now, starting in 4 seconds...")
         
         Thread(target=self.onenote_thread, args=(text,)).start()
 
@@ -292,7 +292,7 @@ class LetterApp:
         
         hwnd = self.find_onenote_window()
         if not hwnd:
-            self.root.after(0, lambda: self.status_label.config(text="Fehler: OneNote nicht gefunden!"))
+            self.root.after(0, lambda: self.status_label.config(text="Error: OneNote not found!"))
             self.root.after(0, lambda: self.stop_button.config(state='disabled'))
             return
         
@@ -300,7 +300,7 @@ class LetterApp:
         time.sleep(0.4)
         
         rect = win32gui.GetWindowRect(hwnd)
-        canvas_x = rect[0] + 20
+        canvas_x = rect[0] + 40
         canvas_y = rect[1] + 100
 
         line_spacing_px = int(self.line_spacing.get())
@@ -327,7 +327,6 @@ class LetterApp:
                 if self.stop_drawing or self.failsafe():
                     break
                 
-                # Manuelle Zeilenlogik
                 if chars_in_line >= chars_per_line and ch == ' ':
                     current_lines += 1
                     offset_y += line_spacing_px
@@ -335,27 +334,24 @@ class LetterApp:
                     chars_in_line = 0
                     time.sleep(0.7)
                     continue
-                
-                # Leerzeichen
+
                 if ch == ' ':
                     offset_x += base_char_spacing_px
                     chars_in_line += 1
                     continue
                 
-                # Überlauf → scrollen
                 if current_lines >= 5:
                     win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, -1000)
                     current_lines = 0
                     offset_y = 50
                     time.sleep(1)
                 
-                # Buchstabe prüfen
                 if ch not in self.letter_db:
                     continue
                 
                 raw_width = self.get_letter_width(ch)
 
-                MIN_WIDTH = 60   # Mindestbreite für i, l, ! usw.
+                MIN_WIDTH = 60
 
                 effective_width = max(raw_width, MIN_WIDTH)
 
@@ -364,15 +360,13 @@ class LetterApp:
                 strokes = self.letter_db[ch]
                 self.root.after(0, lambda c=ch: self.status_label.config(text=f"Zeichne '{c}'..."))
                 
-                # 🔥 Zeichnen des Buchstabens
                 for stroke in strokes:
                     if self.stop_drawing or self.failsafe():
                         break
                     
                     if len(stroke) < 2:
                         continue
-                    
-                    # Startpunkt setzen
+
                     start_x, start_y = stroke[0]
                     sx = canvas_x + int(start_x * scale) + offset_x
                     sy = canvas_y + int(start_y * scale) + offset_y
@@ -385,7 +379,6 @@ class LetterApp:
                     
                     last_x, last_y = sx, sy
                     
-                    # Stroke Linien zeichnen
                     for x, y in stroke[1:]:
                         if self.stop_drawing or self.failsafe():
                             break
@@ -403,19 +396,16 @@ class LetterApp:
                     win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
                     time.sleep(0.0003)
                 
-                # 🔥 Am Ende des Buchstabens den korrekten Abstand setzen
                 offset_x += letter_spacing
                 chars_in_line += 1
             
-            # Neue Textzeile
             offset_y += line_spacing_px
             current_lines += 1
         
-        # Abschlussmeldung
         if self.stop_drawing:
-            self.root.after(0, lambda: self.status_label.config(text="⏹ Zeichnen wurde gestoppt!"))
+            self.root.after(0, lambda: self.status_label.config(text="⏹ stopped drawing!"))
         else:
-            self.root.after(0, lambda: self.status_label.config(text="✅ Fertig!"))
+            self.root.after(0, lambda: self.status_label.config(text="✅ Finished!"))
         
         self.root.after(0, lambda: self.stop_button.config(state='disabled'))
 
@@ -463,10 +453,10 @@ class LetterApp:
     
     def change_letter(self):
         win = tk.Toplevel(self.root)
-        win.title("Buchstabe ändern")
+        win.title("Change character")
         win.geometry("300x200")
         
-        tk.Label(win, text="Welchen Buchstaben ändern?", font=('Arial', 12)).pack(pady=20)
+        tk.Label(win, text="What character would you like to change?", font=('Arial', 12)).pack(pady=20)
         
         var = tk.StringVar(value='a')
         combo = ttk.Combobox(win, textvariable=var, values=list(self.alphabet), font=('Arial', 14))
@@ -480,7 +470,7 @@ class LetterApp:
                 w.destroy()
             self.create_learning_gui()
         
-        tk.Button(win, text="Ändern", command=apply,
+        tk.Button(win, text="Change", command=apply,
                  bg='#4ecdc4', fg='white', font=('Arial', 12)).pack(pady=20)
 
 
