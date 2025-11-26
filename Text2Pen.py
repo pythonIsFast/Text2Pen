@@ -299,9 +299,15 @@ class LetterApp:
         win32gui.SetForegroundWindow(hwnd)
         time.sleep(0.4)
         
-        rect = win32gui.GetWindowRect(hwnd)
-        canvas_x = rect[0] + 40
-        canvas_y = rect[1] + 100
+        client = win32gui.GetClientRect(hwnd)
+        pt = win32gui.ClientToScreen(hwnd, (0,0))
+
+        client_left, client_top = pt
+        client_right = pt[0] + client[2]
+        client_bottom = pt[1] + client[3]
+
+        canvas_x = client_left
+        canvas_y = client_top + 50
 
         line_spacing_px = int(self.line_spacing.get())
         scale = float(self.characterSize.get())
@@ -355,7 +361,10 @@ class LetterApp:
 
                 effective_width = max(raw_width, MIN_WIDTH)
 
-                letter_spacing = int(effective_width * scale * 1.15)
+                letter_spacing = max(
+                    int(effective_width * scale * 1.15),
+                    int(40 * scale)
+                )
 
                 strokes = self.letter_db[ch]
                 self.root.after(0, lambda c=ch: self.status_label.config(text=f"Zeichne '{c}'..."))
@@ -396,7 +405,10 @@ class LetterApp:
                     win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
                     time.sleep(0.0003)
                 
+                if ch in 'iIljJ':
+                    offset_x += letter_spacing + int(10 * scale)
                 offset_x += letter_spacing
+
                 chars_in_line += 1
             
             offset_y += line_spacing_px
