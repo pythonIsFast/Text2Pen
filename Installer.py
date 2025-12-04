@@ -3,6 +3,15 @@ import requests
 import tkinter as tk
 from tkinter import messagebox, ttk
 import shutil
+import win32com.client
+
+def create_shortcut(target, shortcut_path, working_dir):
+    shell = win32com.client.Dispatch("WScript.Shell")
+    shortcut = shell.CreateShortcut(shortcut_path)
+    shortcut.TargetPath = target
+    shortcut.WorkingDirectory = working_dir
+    shortcut.IconLocation = target
+    shortcut.save()
 
 APP_NAME = "Text2Pen"
 DOWNLOAD_URL = "https://raw.githubusercontent.com/pythonIsFast/Text2Pen/main/Text2Pen.exe"
@@ -30,7 +39,11 @@ def download_and_install(progress_var, progress_bar):
                         progress = int(downloaded / total_length * 100)
                         progress_var.set(progress)
                         progress_bar.update()
+        
+        START_MENU = os.path.join(os.environ["APPDATA"], r"Microsoft\Windows\Start Menu\Programs")
+        SHORTCUT_PATH = os.path.join(START_MENU, f"{APP_NAME}.lnk")
 
+        create_shortcut(EXE_PATH, SHORTCUT_PATH, INSTALL_DIR)
         messagebox.showinfo("Erfolg", f"{APP_NAME} wurde erfolgreich installiert!")
     except Exception as e:
         messagebox.showerror("Fehler", f"Fehler beim Installieren:\n{e}")
@@ -39,6 +52,16 @@ def download_and_install(progress_var, progress_bar):
 def uninstall():
     if os.path.exists(INSTALL_DIR):
         shutil.rmtree(INSTALL_DIR)
+
+    START_MENU = os.path.join(os.environ["APPDATA"], r"Microsoft\Windows\Start Menu\Programs")
+    SHORTCUT_PATH = os.path.join(START_MENU, f"{APP_NAME}.lnk")
+
+    if os.path.exists(SHORTCUT_PATH):
+        os.remove(SHORTCUT_PATH)
+
+    if os.path.exists(INSTALL_DIR):
+        shutil.rmtree(INSTALL_DIR)
+
     messagebox.showinfo("Deinstalliert", f"{APP_NAME} wurde entfernt.")
 
 
