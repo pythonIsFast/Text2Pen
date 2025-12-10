@@ -8,6 +8,7 @@ import win32con
 import win32api
 import json
 import os
+import random
 
 class LetterApp:
     def __init__(self, root):
@@ -368,6 +369,8 @@ class LetterApp:
 
                 strokes = self.letter_db[ch]
                 self.root.after(0, lambda c=ch: self.status_label.config(text=f"Zeichne '{c}'..."))
+
+                offset_y += random.randint(-3, 3)
                 
                 for stroke in strokes:
                     if self.stop_drawing or self.failsafe():
@@ -490,3 +493,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = LetterApp(root)
     root.mainloop()
+
