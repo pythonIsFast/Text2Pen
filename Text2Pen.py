@@ -370,6 +370,8 @@ class LetterApp:
                 strokes = self.letter_db[ch]
                 self.root.after(0, lambda c=ch: self.status_label.config(text=f"Zeichne '{c}'..."))
                 
+                offset_letter_y = random.randint(-8, 8)
+
                 for stroke in strokes:
                     if self.stop_drawing or self.failsafe():
                         break
@@ -379,7 +381,7 @@ class LetterApp:
 
                     start_x, start_y = stroke[0]
                     sx = canvas_x + int(start_x * scale) + offset_x
-                    sy = canvas_y + int(start_y * scale) + offset_y + random.randint(-3, 3)
+                    sy = canvas_y + int(start_y * scale) + offset_y + offset_letter_y
                     
                     win32api.SetCursorPos((int(sx), int(sy)))
                     time.sleep(0.003)
