@@ -380,8 +380,9 @@ class LetterApp:
                         continue
 
                     start_x, start_y = stroke[0]
+                    start_y += offset_letter_y
                     sx = canvas_x + int(start_x * scale) + offset_x
-                    sy = canvas_y + int(start_y * scale) + offset_y + offset_letter_y
+                    sy = canvas_y + int(start_y * scale) + offset_y
                     
                     win32api.SetCursorPos((int(sx), int(sy)))
                     time.sleep(0.003)
