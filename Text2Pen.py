@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk
-import subprocess
 import time
 from threading import Thread
 import win32gui
@@ -9,6 +8,34 @@ import win32api
 import json
 import os
 import random
+import psutil
+import sys
+
+INSTALL_DIR = os.path.join(os.environ["LOCALAPPDATA"], "Text2Pen")
+
+UPDATE_EXE = os.path.join(INSTALL_DIR, "Update.exe")
+
+def is_update_running():
+    for proc in psutil.process_iter(["name", "exe"]):
+        try:
+            if proc.info["exe"] and os.path.normcase(proc.info["exe"]) == os.path.normcase(UPDATE_EXE):
+                return True
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return False
+
+if is_update_running():
+    print("Update is running, exiting Text2Pen to allow update...")
+    time.sleep(2)
+    sys.exit(0)
+
+#Update process
+if os.path.exists(INSTALL_DIR + "\\Update-newest.exe"):
+    os.remove(INSTALL_DIR + "Update.exe")
+
+if os.path.exists(INSTALL_DIR + "\\Update-newest.exe"):
+    os.rename(INSTALL_DIR + "\\Update-newest.exe", INSTALL_DIR + "\\Update.exe")
+
 
 class LetterApp:
     def __init__(self, root):
@@ -368,7 +395,7 @@ class LetterApp:
                 )
 
                 strokes = self.letter_db[ch]
-                self.root.after(0, lambda c=ch: self.status_label.config(text=f"Zeichne '{c}'..."))
+                self.root.after(0, lambda c=ch: self.status_label.config(text=f"Drawing '{c}'..."))
                 
                 offset_letter_y = random.randint(-8, 8)
 
