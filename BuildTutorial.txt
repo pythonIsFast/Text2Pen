@@ -1,2 +1,3 @@
 py -3.11 -m PyInstaller --onefile --noconsole Text2Pen.py
 py -3.11 -m PyInstaller --onefile --noconsole Installer.py
+py -3.11 -m PyInstaller --onefile --noconsole Update.py
