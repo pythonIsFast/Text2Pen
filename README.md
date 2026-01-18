@@ -6,17 +6,19 @@ Text2Pen is a Tool that lets you write handwritten Text into OneNote by inputtin
 # ⚠️ Disclaimer / Use at Your Own Risk
 
 Text2Pen is a tool that automates handwriting input into OneNote.  
-By using this application, you agree that you use it **entirely at your own risk**.  
+By using this application, you agree that you use it **entirely at your own risk** and accept all potential risks of data loss or corruption.
 
 Text2Pen does not make any guarantees regarding the safety of your data or the integrity of your OneNote files.  
 - The tool may overwrite, modify, or delete content in OneNote if used incorrectly.  
-- The developers are **not liable** for any loss of data, application crashes, or other unintended effects.  
+- The developers are **not liable** for any loss of data, application crashes, or other unintended effects.
 
 Always make sure to **save your work** and use the tool in a safe environment.
 
+⚠️This tool currently only works on Windows⚠️
+
 # ---
 
-<h1 style="font-weight:900; font-size:3em;">Privacy Policy – Text2Pen</h1>
+# **Privacy Policy – Text2Pen**
 
 # 1. Overview
 
