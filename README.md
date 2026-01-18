@@ -37,20 +37,20 @@ You can change this setting at any time in the application settings.
 
 If telemetry is enabled, the following anonymous technical data may be sent:
 
-Application error and crash reports
-Operating system type (e.g. Windows, MacOS, Linux)
-Timestamp of the error
-Sanitized error messages (no usernames, no file contents)
+Application error and crash reports  
+Operating system type (e.g. Windows, MacOS, Linux)  
+Timestamp of the error  
+Sanitized error messages (no usernames, no file contents)  
 
 # 4. What data is not collected
 
 Text2Pen does not collect:
 
-Names, email addresses, or account data
-Typed or drawn text content
-Mouse or keyboard recordings
-Hardware identifiers
-Location data
+Names, email addresses, or account data  
+Typed or drawn text content  
+Mouse or keyboard recordings  
+Hardware identifiers  
+Location data  
 
 # 5. Data processing location
 
@@ -61,9 +61,9 @@ Only anonymous technical data is transmitted.
 
 Telemetry data is used exclusively for:
 
-Debugging errors
-Improving application stability
-Fixing crashes and bugs
+Debugging errors  
+Improving application stability  
+Fixing crashes and bugs  
 
 No tracking, profiling, or advertising is performed.
 
