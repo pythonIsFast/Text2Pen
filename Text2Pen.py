@@ -35,12 +35,8 @@ if is_update_running():
     sys.exit(0)
 
 #Update process
-if os.path.exists(INSTALL_DIR + "\\Update-newest.exe"):
-    os.remove(os.path.join(INSTALL_DIR, "Update.exe"))
-
-if os.path.exists(INSTALL_DIR + "\\Update-newest.exe"):
-    os.rename(INSTALL_DIR + "\\Update-newest.exe", INSTALL_DIR + "\\Update.exe")
-
+if os.path.exists(os.path.join(INSTALL_DIR, "Update-newest.exe")):
+    os.replace(os.path.join(INSTALL_DIR, "Update-newest.exe"), os.path.join(INSTALL_DIR, "Update.exe"))
 
 class LetterApp:
     def __init__(self, root):

@@ -23,9 +23,9 @@ APP_NAME = "Text2Pen"
 INSTALL_DIR = os.path.join(os.environ["LOCALAPPDATA"], APP_NAME)
 EXE_PATH = os.path.join(INSTALL_DIR, "Text2Pen.exe")
 
-DOWNLOAD_URL = "https://raw.githubusercontent.com/pythonIsFast/Text2Pen/main/Text2Pen.exe"
+DOWNLOAD_URL = "https://github.com/pythonIsFast/Text2Pen/releases/latest/download/Text2Pen.exe"
 
-UPDATE_URL = "https://raw.githubusercontent.com/pythonIsFast/Text2Pen/main/Update.exe"
+UPDATE_URL = "https://github.com/pythonIsFast/Text2Pen/releases/latest/download/Update.exe"
 UPDATE_PATH = os.path.join(INSTALL_DIR, "Update.exe")
 
 def download_file(url, target_path, progress_callback=None):

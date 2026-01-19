@@ -19,8 +19,8 @@ UPDATE_PATH = os.path.join(INSTALL_DIR, "Update.exe")
 UPDATE_TEMP = UPDATE_PATH + "-newest"
 
 # URLs
-TEXT2PEN_URL = "https://raw.githubusercontent.com/pythonIsFast/Text2Pen/main/Text2Pen.exe"
-UPDATE_URL = "https://raw.githubusercontent.com/pythonIsFast/Text2Pen/main/Update.exe"
+TEXT2PEN_URL = "https://github.com/pythonIsFast/Text2Pen/releases/latest/download/Text2Pen.exe"
+UPDATE_URL = "https://github.com/pythonIsFast/Text2Pen/releases/latest/download/Update.exe"
 
 class UpdateApp():
     def __init__(self, root):
