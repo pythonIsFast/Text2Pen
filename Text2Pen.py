@@ -34,10 +34,13 @@ if is_update_running():
     time.sleep(2)
     sys.exit(0)
 
-#Update process
-if os.path.exists(os.path.join(INSTALL_DIR, "Update-newest.exe")):
-    os.replace(os.path.join(INSTALL_DIR, "Update-newest.exe"), os.path.join(INSTALL_DIR, "Update.exe"))
+if os.path.exists(os.path.join(INSTALL_DIR, "Update.exe-newest")):
+    os.replace(os.path.join(INSTALL_DIR, "Update.exe-newest"), os.path.join(INSTALL_DIR, "Update.exe"))
 
+if len(sys.argv) > 1 and sys.argv[1] == "updaterStart":
+    sys.exit(0)
+
+#Update process
 class LetterApp:
     def __init__(self, root):
         self.root = root

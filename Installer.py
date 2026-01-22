@@ -26,6 +26,12 @@ EXE_PATH = os.path.join(INSTALL_DIR, "Text2Pen.exe")
 DOWNLOAD_URL = "https://github.com/pythonIsFast/Text2Pen/releases/latest/download/Text2Pen.exe"
 
 UPDATE_URL = "https://github.com/pythonIsFast/Text2Pen/releases/latest/download/Update.exe"
+
+START_MENU = os.path.join(
+            os.environ["APPDATA"],
+            r"Microsoft\Windows\Start Menu\Programs"
+        )
+
 UPDATE_PATH = os.path.join(INSTALL_DIR, "Update.exe")
 
 def download_file(url, target_path, progress_callback=None):
@@ -62,11 +68,6 @@ def download_and_install(progress_var, progress_bar):
 
         download_file(UPDATE_URL, UPDATE_PATH)
 
-        START_MENU = os.path.join(
-            os.environ["APPDATA"],
-            r"Microsoft\Windows\Start Menu\Programs"
-        )
-
         create_shortcut(
             EXE_PATH,
             os.path.join(START_MENU, f"{APP_NAME}.lnk"),
@@ -85,9 +86,13 @@ def download_and_install(progress_var, progress_bar):
 
 def uninstall():
     #Remove automatic startup shortcut
-    path = os.path.join(STARTUP_DIR, "Update.lnk")
-    if os.path.exists(path):
-        os.remove(path)
+    path1 = os.path.join(STARTUP_DIR, "Update.lnk")
+    if os.path.exists(path1):
+        os.remove(path1)
+
+    path2 = os.path.join(START_MENU, "Text2Pen.lnk")
+    if os.path.exists(path2):
+        os.remove(path2)
 
     if os.path.exists(INSTALL_DIR):
         shutil.rmtree(INSTALL_DIR)

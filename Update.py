@@ -7,6 +7,7 @@ import time
 import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
+import threading
 
 APP_NAME = "Text2Pen"
 
@@ -39,7 +40,7 @@ class UpdateApp():
         self.status_label = tk.Label(root, text="Starting...", font=("Arial", 10))
         self.status_label.pack(pady=5)
 
-        self.root.after(100, self.main)
+        threading.Thread(target=self.main, daemon=True).start()
 
     def download_file(self, url, target_path):
         os.makedirs(os.path.dirname(target_path), exist_ok=True)
@@ -82,14 +83,23 @@ class UpdateApp():
 
             #Starting Text2Pen
             print("Starting Text2Pen...")
-            subprocess.Popen([TEXT2PEN_PATH])
+            subprocess.Popen([TEXT2PEN_PATH, "updaterStart"])
             self.root.destroy()
 
         except Exception as e:
             messagebox.showerror("Error", f"Update failed:\n{e}")
             self.root.destroy()
 
+def on_close():
+    messagebox.showinfo(
+        "Update running",
+        "Please wait for Text2Pen to finish the update."
+    )
+
 if __name__ == "__main__":
     root = tk.Tk()
+
+    root.protocol("WM_DELETE_WINDOW", on_close)
+
     app = UpdateApp(root)
     root.mainloop()
