@@ -611,14 +611,15 @@ class LetterApp:
                     continue
                 
                 raw_width = self.get_letter_width(ch)
+                letter_scale = scale * random.uniform(0.97, 1.03)
 
                 MIN_WIDTH = 60
 
                 effective_width = max(raw_width, MIN_WIDTH)
 
                 letter_spacing = max(
-                    int(effective_width * scale * 1.23) + 8,
-                    int(50 * scale) + 8
+                    int(effective_width * letter_scale * 1.23) + 8,
+                    int(50 * letter_scale) + 8
                 )
 
                 strokes = self.letter_db[ch]
@@ -635,8 +636,8 @@ class LetterApp:
 
                     start_x, start_y = stroke[0]
                     start_y += offset_letter_y
-                    sx = canvas_x + int(start_x * scale) + offset_x
-                    sy = canvas_y + int(start_y * scale) + offset_y
+                    sx = canvas_x + int(start_x * letter_scale) + offset_x
+                    sy = canvas_y + int(start_y * letter_scale) + offset_y
                     
                     win32api.SetCursorPos((int(sx), int(sy)))
                     time.sleep(0.003)
@@ -650,8 +651,8 @@ class LetterApp:
                         if self.stop_drawing or self.failsafe():
                             break
                         
-                        nx = canvas_x + int(x * scale) + offset_x
-                        ny = canvas_y + int(y * scale) + offset_y
+                        nx = canvas_x + int(x * letter_scale) + offset_x
+                        ny = canvas_y + int(y * letter_scale) + offset_y
                         
                         dx = nx - last_x
                         dy = ny - last_y
