@@ -611,7 +611,7 @@ class LetterApp:
                     continue
                 
                 raw_width = self.get_letter_width(ch)
-                letter_scale = scale * random.uniform(0.97, 1.03)
+                letter_scale = scale * random.uniform(0.7, 0.91)
 
                 MIN_WIDTH = 60
 
