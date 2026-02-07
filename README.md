@@ -14,6 +14,13 @@ Text2Pen does not make any guarantees regarding the safety of your data or the i
 
 Always make sure to **save your work** and use the tool in a safe environment.
 
+⚠️ Note on Microsoft OneNote Terms of Service
+Text2Pen automates input into Microsoft OneNote. This may violate Microsoft's Terms of Service.
+Use the tool only for personal, non-commercial purposes and at your own risk.
+
+⚠️ Automatic Updates
+Text2Pen may replace or update its executable files automatically. Ensure you trust the source before running updates.
+
 ⚠️This tool currently only works on Windows⚠️
 
 # ---
