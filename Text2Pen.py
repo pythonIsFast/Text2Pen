@@ -13,6 +13,7 @@ import psutil
 import sys
 import requests
 import platform
+import webbrowser
 
 BACKEND_URL = "https://text2pen-backend.onrender.com/telemetry"
 
@@ -57,6 +58,7 @@ class LetterApp:
         # Storage files
         self.db_file = 'letter_db.json'
         self.settings_file = 'settingsDB.json'
+        self.text_file = 'saved_text.txt'
         
         self.load_letters()
         self.load_settings()
@@ -126,7 +128,30 @@ class LetterApp:
             print("Error:", e)
             return "failed"
         
-    
+    def load_text(self):
+        if os.path.exists(self.text_file):
+            try:
+                with open(self.text_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                self.input_text.delete('1.0', 'end')
+                self.input_text.insert('1.0', content)
+            except IOError:
+                print("Error loading saved text.")
+
+    def save_text(self):
+        try:
+            content = self.input_text.get('1.0', 'end-1c')
+            with open(self.text_file, 'w', encoding='utf-8') as f:
+                f.write(content)
+        except IOError:
+            print("Error saving text.")
+
+    def on_closing(self):
+        self.save_text()
+        self.save_settings()
+        self.root.destroy()
+
+
     def create_gui(self):
         if self.learning_mode:
             self.create_learning_gui()
@@ -195,6 +220,17 @@ class LetterApp:
             text="Text2Pen - Write text in OneNote",
             font=('Arial', 26, 'bold')
         ).pack(side=ctk.LEFT, expand=True)
+
+        ctk.CTkButton(
+            header_frame,
+            text="Visit Website",
+            command=lambda: webbrowser.open("https://text2pen.onrender.com"),
+            fg_color="#7719AA",
+            text_color="white",
+            font=('Arial', 14, 'bold'),
+            width=180
+        ).pack(pady=10)
+
         
         # Settings button (gear icon)
         ctk.CTkButton(header_frame, text="⚙️", command=self.open_settings,
@@ -252,6 +288,9 @@ class LetterApp:
         
         ctk.CTkButton(options, text="Change single character", command=self.change_letter,
                   fg_color='#95a5a6', text_color='white', font=('Arial', 11), width=160).pack(side=ctk.LEFT, padx=10)
+        
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+        self.load_text()
     
     def load_settings(self):
         """Load settings from database, create with defaults if not exists"""
@@ -482,7 +521,7 @@ class LetterApp:
             self.strokes = []
             self.draw_letter_template(self.current_letter)
             self.title_label.configure(text=f"Learning character: {self.current_letter}")
-            self.progress_label.configure(text=f"Progression: {len(self.letter_db)}/{self.alphabet.__len__()} character learned!")
+            self.progress_label.configure(text=f"Progression: {len(self.letter_db)}/{self.alphabet.__len__()} characters learned!")
         else:
             self.learning_mode = False
             for w in self.root.winfo_children():
