@@ -690,8 +690,10 @@ class LetterApp:
                         if self.stop_drawing or self.failsafe():
                             break
                         
+                        # Echte zufällige Y-Variation pro Punkt (nicht akkumuliert)
+                        y_offset = random.randint(-2, 2)
                         nx = canvas_x + int(x * letter_scale) + offset_x
-                        ny = canvas_y + int(y * letter_scale) + offset_y
+                        ny = canvas_y + int((y + y_offset) * letter_scale) + offset_y
                         
                         dx = nx - last_x
                         dy = ny - last_y
@@ -704,7 +706,6 @@ class LetterApp:
                     time.sleep(0.0003)
                 
                 offset_x += letter_spacing
-
                 chars_in_line += 1
             
             offset_y += line_spacing_px
