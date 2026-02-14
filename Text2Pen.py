@@ -686,15 +686,17 @@ class LetterApp:
                     
                     last_x, last_y = sx, sy
                     
-                    for x, y in stroke[1:]:
+                    for x, y in stroke[1::3]:
                         if self.stop_drawing or self.failsafe():
                             break
                         
-                        # Echte zufällige Y-Variation pro Punkt (nicht akkumuliert)
                         y_offset = random.randint(-2, 2)
                         nx = canvas_x + int(x * letter_scale) + offset_x
                         ny = canvas_y + int((y + y_offset) * letter_scale) + offset_y
-                        
+
+                        nx += random.randint(-1,1)
+                        ny += random.randint(-1,1)
+   
                         dx = nx - last_x
                         dy = ny - last_y
                         
