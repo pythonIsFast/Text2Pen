@@ -21,6 +21,36 @@ INSTALL_DIR = os.path.join(os.environ["LOCALAPPDATA"], "Text2Pen")
 
 UPDATE_EXE = os.path.join(INSTALL_DIR, "Update.exe")
 
+def parse_text_with_tables(text):
+    lines = text.split('\n')
+    blocks = []
+    current_table = []
+    current_text = []
+
+    def flush_text():
+        nonlocal current_text
+        if current_text:
+            blocks.append({"type": "text", "content": "\n".join(current_text)})
+            current_text = []
+
+    def flush_table():
+        nonlocal current_table
+        if current_table:
+            blocks.append({"type": "table", "rows": current_table})
+            current_table = []
+
+    for line in lines:
+        if '\t' in line:
+            flush_text()
+            current_table.append(line.split('\t'))
+        else:
+            flush_table()
+            current_text.append(line)
+
+    flush_text()
+    flush_table()
+    return blocks
+
 def is_update_running():
     for proc in psutil.process_iter(["name", "exe"]):
         try:
@@ -550,18 +580,26 @@ class LetterApp:
         if not text:
             self.status_label.configure(text="Please input Text!")
             return
+
+        blocks = parse_text_with_tables(text)
         
         # Check trained letters
-        for ch in text:
-            if ch and ch != " " and ch != '\n'and ch not in self.letter_db:
-                self.status_label.configure(text=f"Character '{ch}' not learned!")
-                return
+        for block in blocks:
+            if block['type'] == 'text':
+                to_check = block['content']
+            else:
+                to_check = ''.join(''.join(row) for row in block['rows'])
+
+            for ch in to_check:
+                if ch and ch not in (' ', '\n', '\t') and ch not in self.letter_db:
+                    self.status_label.configure(text=f"Character '{ch}' not learned!")
+                    return
         
         self.stop_drawing = False
         self.stop_button.configure(state='normal')
         self.status_label.configure(text="Please open OneNote now, starting in 4 seconds...")
         
-        Thread(target=self.onenote_thread, args=(text,)).start()
+        Thread(target=self.onenote_thread, args=(blocks,)).start()
 
     def get_letter_width(self, ch):
         strokes = self.letter_db[ch]
@@ -577,7 +615,7 @@ class LetterApp:
 
         return (max_x - min_x)
     
-    def onenote_thread(self, text):
+    def onenote_thread(self, blocks):
         time.sleep(4)
         
         if self.stop_drawing:
@@ -606,30 +644,124 @@ class LetterApp:
         line_spacing_px = self.line_spacing_value
         scale = self.character_size_value
 
-        chars_per_line = int(6 / scale)
-        
-        base_char_spacing_px = int(180 * scale)
         offset_x = 50
         offset_y = 50
-        
         current_lines = 0
-        
-        lines = text.split('\n')
-        
-        for line in lines:
+
+        self._draw_context = {
+            "canvas_x": canvas_x,
+            "canvas_y": canvas_y,
+            "line_spacing_px": line_spacing_px,
+            "scale": scale
+        }
+
+        for block in blocks:
             if self.stop_drawing or self.failsafe():
                 break
-            
+
+            if block['type'] == 'text':
+                offset_x, offset_y, current_lines = self.draw_text_block(
+                    block['content'], offset_x, offset_y, current_lines
+                )
+            elif block['type'] == 'table':
+                offset_x, offset_y, current_lines = self.draw_table(
+                    block['rows'], offset_x, offset_y, current_lines
+                )
+                offset_y += line_spacing_px
+                current_lines += 1
+        
+        if self.stop_drawing:
+            self.root.after(0, lambda: self.status_label.configure(text="⏹ stopped drawing!"))
+        else:
+            self.root.after(0, lambda: self.status_label.configure(text="✅ Finished!"))
+        
+        self.root.after(0, lambda: self.stop_button.configure(state='disabled'))
+
+    def _scroll_if_needed(self, current_lines):
+        if current_lines >= 5:
+            win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, -1000)
+            time.sleep(1)
+            return 0, 50
+        return current_lines, None
+
+    def draw_character(self, ch, offset_x, offset_y, scale, jitter=True):
+        if ch not in self.letter_db:
+            return 0
+
+        raw_width = self.get_letter_width(ch)
+        letter_scale = scale * random.uniform(0.7, 0.91) if jitter else scale
+        effective_width = max(raw_width, 60)
+        letter_spacing = max(
+            int(effective_width * letter_scale * 1.23) + 8,
+            int(50 * letter_scale) + 8
+        )
+
+        canvas_x = self._draw_context['canvas_x']
+        canvas_y = self._draw_context['canvas_y']
+
+        strokes = self.letter_db[ch]
+        self.root.after(0, lambda c=ch: self.status_label.configure(text=f"Drawing '{c}'..."))
+        offset_letter_y = random.randint(-8, 8) if jitter else 0
+
+        for stroke in strokes:
+            if self.stop_drawing or self.failsafe() or len(stroke) < 2:
+                continue
+
+            start_x, start_y = stroke[0]
+            start_y += offset_letter_y
+            sx = canvas_x + int(start_x * letter_scale) + int(offset_x)
+            sy = canvas_y + int(start_y * letter_scale) + int(offset_y)
+
+            win32api.SetCursorPos((int(sx), int(sy)))
+            time.sleep(0.003)
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+            time.sleep(0.0003)
+
+            last_x, last_y = sx, sy
+            for x, y in stroke[1::3]:
+                if self.stop_drawing or self.failsafe():
+                    break
+
+                y_offset = random.randint(-2, 2) if jitter else 0
+                nx = canvas_x + int(x * letter_scale) + int(offset_x)
+                ny = canvas_y + int((y + y_offset) * letter_scale) + int(offset_y)
+
+                if jitter:
+                    nx += random.randint(-1, 1)
+                    ny += random.randint(-1, 1)
+
+                win32api.mouse_event(win32con.MOUSEEVENTF_MOVE, int(nx - last_x), int(ny - last_y))
+                last_x, last_y = nx, ny
+
+            win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+            time.sleep(0.0003)
+
+        return letter_spacing
+
+    def draw_text_block(self, text, offset_x, offset_y, current_lines):
+        scale = self._draw_context['scale']
+        line_spacing_px = self._draw_context['line_spacing_px']
+        chars_per_line = int(6 / scale)
+        base_char_spacing_px = int(180 * scale)
+
+        for line in text.split('\n'):
+            if self.stop_drawing or self.failsafe():
+                break
+
             offset_x = 50
             chars_in_line = 0
-            
+
             for ch in line:
                 if self.stop_drawing or self.failsafe():
                     break
-                
+
                 if chars_in_line >= chars_per_line and ch == ' ':
                     current_lines += 1
-                    offset_y += line_spacing_px
+                    current_lines, new_y = self._scroll_if_needed(current_lines)
+                    if new_y is not None:
+                        offset_y = new_y
+                    else:
+                        offset_y += line_spacing_px
                     offset_x = 50
                     chars_in_line = 0
                     time.sleep(0.7)
@@ -639,86 +771,132 @@ class LetterApp:
                     offset_x += base_char_spacing_px
                     chars_in_line += 1
                     continue
-                
-                if current_lines >= 5:
-                    win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, -1000)
-                    current_lines = 0
-                    offset_y = 50
-                    time.sleep(1)
-                
-                if ch not in self.letter_db:
-                    continue
-                
-                raw_width = self.get_letter_width(ch)
-                letter_scale = scale * random.uniform(0.7, 0.91)
 
-                MIN_WIDTH = 60
-
-                effective_width = max(raw_width, MIN_WIDTH)
-
-                letter_spacing = max(
-                    int(effective_width * letter_scale * 1.23) + 8,
-                    int(50 * letter_scale) + 8
-                )
-
-                strokes = self.letter_db[ch]
-                self.root.after(0, lambda c=ch: self.status_label.configure(text=f"Drawing '{c}'..."))
-                
-                offset_letter_y = random.randint(-8, 8)
-
-                for stroke in strokes:
-                    if self.stop_drawing or self.failsafe():
-                        break
-                    
-                    if len(stroke) < 2:
-                        continue
-
-                    start_x, start_y = stroke[0]
-                    start_y += offset_letter_y
-                    sx = canvas_x + int(start_x * letter_scale) + offset_x
-                    sy = canvas_y + int(start_y * letter_scale) + offset_y
-                    
-                    win32api.SetCursorPos((int(sx), int(sy)))
-                    time.sleep(0.003)
-                    
-                    win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
-                    time.sleep(0.0003)
-                    
-                    last_x, last_y = sx, sy
-                    
-                    for x, y in stroke[1::3]:
-                        if self.stop_drawing or self.failsafe():
-                            break
-                        
-                        y_offset = random.randint(-2, 2)
-                        nx = canvas_x + int(x * letter_scale) + offset_x
-                        ny = canvas_y + int((y + y_offset) * letter_scale) + offset_y
-
-                        nx += random.randint(-1,1)
-                        ny += random.randint(-1,1)
-   
-                        dx = nx - last_x
-                        dy = ny - last_y
-                        
-                        win32api.mouse_event(win32con.MOUSEEVENTF_MOVE, int(dx), int(dy))
-                        
-                        last_x, last_y = nx, ny
-                    
-                    win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
-                    time.sleep(0.0003)
-                
-                offset_x += letter_spacing
+                spacing = self.draw_character(ch, offset_x, offset_y, scale, jitter=True)
+                offset_x += spacing
                 chars_in_line += 1
-            
+
             offset_y += line_spacing_px
             current_lines += 1
-        
-        if self.stop_drawing:
-            self.root.after(0, lambda: self.status_label.configure(text="⏹ stopped drawing!"))
-        else:
-            self.root.after(0, lambda: self.status_label.configure(text="✅ Finished!"))
-        
-        self.root.after(0, lambda: self.stop_button.configure(state='disabled'))
+            current_lines, new_y = self._scroll_if_needed(current_lines)
+            if new_y is not None:
+                offset_y = new_y
+
+        return offset_x, offset_y, current_lines
+
+    def draw_line(self, start_x, start_y, end_x, end_y):
+        canvas_x = self._draw_context['canvas_x']
+        canvas_y = self._draw_context['canvas_y']
+
+        sx = canvas_x + int(start_x)
+        sy = canvas_y + int(start_y)
+        ex = canvas_x + int(end_x)
+        ey = canvas_y + int(end_y)
+
+        steps = max(abs(ex - sx), abs(ey - sy), 1)
+        coarse_steps = max(steps // 12, 1)
+
+        win32api.SetCursorPos((sx, sy))
+        time.sleep(0.002)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+        for i in range(1, coarse_steps + 1):
+            nx = sx + int((ex - sx) * i / coarse_steps)
+            ny = sy + int((ey - sy) * i / coarse_steps)
+            win32api.SetCursorPos((nx, ny))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
+        time.sleep(0.002)
+
+    def _wrap_cell_text(self, cell_text, max_width_px, scale):
+        if not cell_text:
+            return [""]
+
+        approx_char_width = max(int(40 * scale), 1)
+        max_chars = max(int(max_width_px / approx_char_width), 1)
+        lines = []
+
+        for paragraph in str(cell_text).split('\n'):
+            words = paragraph.split(' ')
+            current = ""
+
+            for word in words:
+                candidate = word if not current else f"{current} {word}"
+                if len(candidate) <= max_chars:
+                    current = candidate
+                    continue
+
+                if current:
+                    lines.append(current)
+                    current = ""
+
+                while len(word) > max_chars:
+                    lines.append(word[:max_chars])
+                    word = word[max_chars:]
+
+                current = word
+
+            lines.append(current)
+
+        return lines or [""]
+
+    def draw_table(self, table, offset_x, offset_y, current_lines):
+        if not table:
+            return offset_x, offset_y, current_lines
+
+        scale = self._draw_context['scale']
+        row_height = int(80 * scale)
+
+        col_count = max(len(row) for row in table)
+        padded_rows = [row + [''] * (col_count - len(row)) for row in table]
+
+        col_width_chars = [0] * col_count
+        for row in padded_rows:
+            for i, cell in enumerate(row):
+                col_width_chars[i] = max(col_width_chars[i], len(cell))
+
+        col_width_px = [max(int(chars * 40 * scale), int(120 * scale)) for chars in col_width_chars]
+        table_width = sum(col_width_px)
+
+        y = offset_y
+        for row in padded_rows:
+            if self.stop_drawing or self.failsafe():
+                break
+
+            current_lines, new_y = self._scroll_if_needed(current_lines)
+            if new_y is not None:
+                y = new_y
+
+            x = offset_x
+            self.draw_line(offset_x, y, offset_x + table_width, y)
+
+            for idx, cell in enumerate(row):
+                cell_width = col_width_px[idx]
+                self.draw_line(x, y, x, y + row_height)
+
+                text_padding_x = int(20 * scale)
+                text_padding_y = int(15 * scale)
+                available_width = max(cell_width - (2 * text_padding_x), int(40 * scale))
+                wrapped_lines = self._wrap_cell_text(cell, available_width, scale)
+
+                for line_idx, cell_line in enumerate(wrapped_lines):
+                    line_y = y + text_padding_y + (line_idx * int(45 * scale))
+                    if line_y > (y + row_height - int(20 * scale)):
+                        break
+
+                    text_x = x + text_padding_x
+                    for ch in cell_line:
+                        if ch == ' ':
+                            text_x += int(180 * scale)
+                        else:
+                            text_x += self.draw_character(ch, text_x, line_y, scale, jitter=False)
+                x += cell_width
+
+            self.draw_line(offset_x + table_width, y, offset_x + table_width, y + row_height)
+            self.draw_line(offset_x, y + row_height, offset_x + table_width, y + row_height)
+
+            y += row_height
+            current_lines += 1
+
+        return 50, y, current_lines
 
 
     # ---------------------------------------------------------
