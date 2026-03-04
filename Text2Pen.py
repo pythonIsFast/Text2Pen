@@ -843,7 +843,7 @@ class LetterApp:
             return offset_x, offset_y, current_lines
 
         scale = self._draw_context['scale']
-        row_height = int(80 * scale)
+        row_height = int(800 * scale)
 
         col_count = max(len(row) for row in table)
         padded_rows = [row + [''] * (col_count - len(row)) for row in table]
@@ -853,7 +853,7 @@ class LetterApp:
             for i, cell in enumerate(row):
                 col_width_chars[i] = max(col_width_chars[i], len(cell))
 
-        col_width_px = [max(int(chars * 40 * scale), int(120 * scale)) for chars in col_width_chars]
+        col_width_px = [max(int(chars * 400 * scale), int(300 * scale)) for chars in col_width_chars]
         table_width = sum(col_width_px)
 
         y = offset_y
