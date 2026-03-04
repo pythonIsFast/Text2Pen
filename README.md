@@ -81,4 +81,4 @@ Once disabled, no further telemetry data will be sent.
 
 # 8. Contact
 
-If you have questions about privacy or data handling, please contact the project maintainer via the official project page.
+If you have questions about privacy or data handling, please contact the project maintainer via a Github Issue.
