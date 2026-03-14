@@ -123,7 +123,6 @@ class LetterApp:
 
     def tk_exception_handler(self, exc, val, tb):
         print("TK EXCEPTION:", val)
-
         self.expeption_occured(val)
 
     def expeption_occured(self, exception):
@@ -485,9 +484,7 @@ class LetterApp:
         def save_settings_and_close():
             self.character_size_value = float(self.characterSize.get())
             self.line_spacing_value = int(self.line_spacing.get())
-
             self.telemetry_opted_in = bool(telemetry_var.get())
-
             self.save_settings()
             settings_win.destroy()
         
@@ -601,19 +598,26 @@ class LetterApp:
         
         Thread(target=self.onenote_thread, args=(blocks,)).start()
 
-    def get_letter_width(self, ch):
+    def get_letter_bounds(self, ch):
+        """Returns (min_x, min_y, max_x, max_y) for a character's strokes."""
         strokes = self.letter_db[ch]
-        min_x = float('inf')
-        max_x = float('-inf')
-
+        min_x = min_y = float('inf')
+        max_x = max_y = float('-inf')
         for stroke in strokes:
             for x, y in stroke:
-                if x < min_x:
-                    min_x = x
-                if x > max_x:
-                    max_x = x
+                if x < min_x: min_x = x
+                if x > max_x: max_x = x
+                if y < min_y: min_y = y
+                if y > max_y: max_y = y
+        return min_x, min_y, max_x, max_y
 
-        return (max_x - min_x)
+    def get_letter_width(self, ch):
+        min_x, _, max_x, _ = self.get_letter_bounds(ch)
+        return max_x - min_x
+
+    def get_letter_height(self, ch):
+        _, min_y, _, max_y = self.get_letter_bounds(ch)
+        return max_y - min_y
     
     def onenote_thread(self, blocks):
         time.sleep(4)
@@ -632,11 +636,9 @@ class LetterApp:
         time.sleep(0.4)
         
         client = win32gui.GetClientRect(hwnd)
-        pt = win32gui.ClientToScreen(hwnd, (0,0))
+        pt = win32gui.ClientToScreen(hwnd, (0, 0))
 
         client_left, client_top = pt
-        client_right = pt[0] + client[2]
-        client_bottom = pt[1] + client[3]
 
         canvas_x = client_left
         canvas_y = client_top + 90  # Offset for toolbar
@@ -667,6 +669,7 @@ class LetterApp:
                 offset_x, offset_y, current_lines = self.draw_table(
                     block['rows'], offset_x, offset_y, current_lines
                 )
+                
                 offset_y += line_spacing_px
                 current_lines += 1
         
@@ -689,7 +692,7 @@ class LetterApp:
             return 0
 
         raw_width = self.get_letter_width(ch)
-        letter_scale = scale * random.uniform(0.7, 0.91) if jitter else scale
+        letter_scale = scale * random.uniform(0.85, 1.0) if jitter else scale
         effective_width = max(raw_width, 60)
         letter_spacing = max(
             int(effective_width * letter_scale * 1.23) + 8,
@@ -784,119 +787,147 @@ class LetterApp:
 
         return offset_x, offset_y, current_lines
 
-    def draw_line(self, start_x, start_y, end_x, end_y):
-        canvas_x = self._draw_context['canvas_x']
-        canvas_y = self._draw_context['canvas_y']
+    # ---------------------------------------------------------
+    # DRAW LINE
+    # ---------------------------------------------------------
+    def draw_line_abs(self, screen_x1, screen_y1, screen_x2, screen_y2):
+        steps = max(abs(screen_x2 - screen_x1), abs(screen_y2 - screen_y1), 1)
+        coarse_steps = max(steps // 3, 1)
 
-        sx = canvas_x + int(start_x)
-        sy = canvas_y + int(start_y)
-        ex = canvas_x + int(end_x)
-        ey = canvas_y + int(end_y)
-
-        steps = max(abs(ex - sx), abs(ey - sy), 1)
-        coarse_steps = max(steps // 12, 1)
-
-        win32api.SetCursorPos((sx, sy))
-        time.sleep(0.002)
+        win32api.SetCursorPos((int(screen_x1), int(screen_y1)))
+        time.sleep(0.01)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN, 0, 0)
+        time.sleep(0.005)
+
+        last_x, last_y = screen_x1, screen_y1
+
         for i in range(1, coarse_steps + 1):
-            nx = sx + int((ex - sx) * i / coarse_steps)
-            ny = sy + int((ey - sy) * i / coarse_steps)
-            win32api.SetCursorPos((nx, ny))
+            nx = screen_x1 + int((screen_x2 - screen_x1) * i / coarse_steps)
+            ny = screen_y1 + int((screen_y2 - screen_y1) * i / coarse_steps)
+
+            if i < coarse_steps:
+                if abs(screen_x2 - screen_x1) > abs(screen_y2 - screen_y1):
+                    ny += random.randint(-2, 2)
+                else:
+                    nx += random.randint(-2, 2)
+
+            win32api.mouse_event(win32con.MOUSEEVENTF_MOVE, int(nx - last_x), int(ny - last_y))
+            last_x, last_y = nx, ny
+            time.sleep(0.002)
+
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP, 0, 0)
-        time.sleep(0.002)
+        time.sleep(0.005)
 
-    def _wrap_cell_text(self, cell_text, max_width_px, scale):
-        if not cell_text:
-            return [""]
+    # ---------------------------------------------------------
+    # TABLE DRAWING
+    # ---------------------------------------------------------
+    def _measure_col_widths(self, padded_rows, scale):
+        col_count = len(padded_rows[0])
+        col_widths = []
 
-        approx_char_width = max(int(40 * scale), 1)
-        max_chars = max(int(max_width_px / approx_char_width), 1)
-        lines = []
+        for col_idx in range(col_count):
+            max_cell_width = 0
+            for row in padded_rows:
+                cell = str(row[col_idx])
+                cell_px = 0
+                for ch in cell:
+                    if ch == ' ':
+                        cell_px += int(180 * scale)
+                    elif ch in self.letter_db:
+                        raw_w = self.get_letter_width(ch)
+                        effective_w = max(raw_w, 60)
+                        cell_px += max(int(effective_w * scale * 1.23) + 8, int(50 * scale) + 8)
+                if cell_px > max_cell_width:
+                    max_cell_width = cell_px
 
-        for paragraph in str(cell_text).split('\n'):
-            words = paragraph.split(' ')
-            current = ""
+            padding = 40
+            col_widths.append(max(max_cell_width + padding, 80))
 
-            for word in words:
-                candidate = word if not current else f"{current} {word}"
-                if len(candidate) <= max_chars:
-                    current = candidate
-                    continue
+        return col_widths
 
-                if current:
-                    lines.append(current)
-                    current = ""
+    def _measure_row_height(self, scale):
+        heights = []
+        for ch in self.letter_db:
+            h = self.get_letter_height(ch)
+            if h > 0:
+                heights.append(h)
+        avg_letter_h = (sum(heights) / len(heights)) if heights else 200
+        text_h = int(avg_letter_h * scale)
 
-                while len(word) > max_chars:
-                    lines.append(word[:max_chars])
-                    word = word[max_chars:]
-
-                current = word
-
-            lines.append(current)
-
-        return lines or [""]
+        padding = 40
+        return max(text_h + padding, 60)
 
     def draw_table(self, table, offset_x, offset_y, current_lines):
         if not table:
             return offset_x, offset_y, current_lines
 
         scale = self._draw_context['scale']
-        row_height = int(800 * scale)
+        canvas_x = self._draw_context['canvas_x']
+        canvas_y = self._draw_context['canvas_y']
 
         col_count = max(len(row) for row in table)
+
         padded_rows = [row + [''] * (col_count - len(row)) for row in table]
 
-        col_width_chars = [0] * col_count
-        for row in padded_rows:
-            for i, cell in enumerate(row):
-                col_width_chars[i] = max(col_width_chars[i], len(cell))
+        col_widths = self._measure_col_widths(padded_rows, scale)
+        row_height = self._measure_row_height(scale)
+        table_width = sum(col_widths)
 
-        col_width_px = [max(int(chars * 400 * scale), int(300 * scale)) for chars in col_width_chars]
-        table_width = sum(col_width_px)
+        text_padding_x = 15
+        text_padding_y = 12
 
-        y = offset_y
-        for row in padded_rows:
+        origin_sx = canvas_x + int(offset_x)
+        origin_sy = canvas_y + int(offset_y)
+
+        for row_idx, row in enumerate(padded_rows):
             if self.stop_drawing or self.failsafe():
                 break
 
-            current_lines, new_y = self._scroll_if_needed(current_lines)
-            if new_y is not None:
-                y = new_y
+            row_top_sy    = origin_sy + row_idx * row_height
+            row_bottom_sy = row_top_sy + row_height
 
-            x = offset_x
-            self.draw_line(offset_x, y, offset_x + table_width, y)
+            if row_idx == 0:
+                self.draw_line_abs(origin_sx, row_top_sy,
+                                   origin_sx + table_width, row_top_sy)
 
-            for idx, cell in enumerate(row):
-                cell_width = col_width_px[idx]
-                self.draw_line(x, y, x, y + row_height)
+            self.draw_line_abs(origin_sx, row_bottom_sy,
+                               origin_sx + table_width, row_bottom_sy)
+            
+            col_sx = origin_sx
+            for col_idx, cell in enumerate(row):
+                if self.stop_drawing or self.failsafe():
+                    break
 
-                text_padding_x = int(20 * scale)
-                text_padding_y = int(15 * scale)
-                available_width = max(cell_width - (2 * text_padding_x), int(40 * scale))
-                wrapped_lines = self._wrap_cell_text(cell, available_width, scale)
+                col_width = col_widths[col_idx]
 
-                for line_idx, cell_line in enumerate(wrapped_lines):
-                    line_y = y + text_padding_y + (line_idx * int(45 * scale))
-                    if line_y > (y + row_height - int(20 * scale)):
+                self.draw_line_abs(col_sx, row_top_sy, col_sx, row_bottom_sy)
+
+                text_sx = col_sx + text_padding_x
+                text_sy = row_top_sy + text_padding_y
+
+                char_offset_y = text_sy - canvas_y
+                char_offset_x = text_sx - canvas_x
+
+                for ch in str(cell):
+                    if self.stop_drawing or self.failsafe():
                         break
+                    if ch == ' ':
+                        char_offset_x += int(180 * scale)
+                    else:
+                        spacing = self.draw_character(ch, char_offset_x, char_offset_y,
+                                                      scale, jitter=False)
+                        char_offset_x += spacing
 
-                    text_x = x + text_padding_x
-                    for ch in cell_line:
-                        if ch == ' ':
-                            text_x += int(180 * scale)
-                        else:
-                            text_x += self.draw_character(ch, text_x, line_y, scale, jitter=False)
-                x += cell_width
+                col_sx += col_width
 
-            self.draw_line(offset_x + table_width, y, offset_x + table_width, y + row_height)
-            self.draw_line(offset_x, y + row_height, offset_x + table_width, y + row_height)
+            self.draw_line_abs(origin_sx + table_width, row_top_sy,
+                               origin_sx + table_width, row_bottom_sy)
 
-            y += row_height
             current_lines += 1
 
-        return 50, y, current_lines
+        table_height = len(padded_rows) * row_height
+        new_offset_y = offset_y + table_height
+        return 50, new_offset_y, current_lines
 
 
     # ---------------------------------------------------------
@@ -972,4 +1003,3 @@ if __name__ == "__main__":
     app = LetterApp(root)
 
     root.mainloop()
-
