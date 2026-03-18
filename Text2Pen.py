@@ -14,8 +14,10 @@ import sys
 import requests
 import platform
 import webbrowser
+import ctypes
 
-BACKEND_URL = "https://text2pen-backend.onrender.com/telemetry"
+TELEMETRY_URL = "https://text2pen-backend.onrender.com/telemetry"
+AI_URL = "https://text2pen-backend.onrender.com/ai"
 
 INSTALL_DIR = os.path.join(os.environ["LOCALAPPDATA"], "Text2Pen")
 
@@ -114,6 +116,31 @@ class LetterApp:
         self.create_gui()
 
         self.root._state_before_windows_set_titlebar_color = 'zoomed'
+
+    def show_progress_overlay(self):
+        screen_w = ctypes.windll.user32.GetSystemMetrics(0)
+        
+        width, height = 300, 30
+        
+        self.overlay = Toplevel(self.root)
+        self.overlay.overrideredirect(True)
+        self.overlay.attributes("-topmost", True)
+        self.overlay.resizable(False, False)
+        self.overlay.geometry(f"{width}x{height}+{screen_w - width}+0")
+
+        self.overlay_bar = ctk.CTkProgressBar(
+            self.overlay,
+            width=width,
+            height=height,
+            corner_radius=0,
+            progress_color="green"
+        )
+        self.overlay_bar.pack()
+        self.overlay_bar.set(0)
+
+    def close_progress_overlay(self):
+        if hasattr(self, 'overlay'):
+            self.root.after(0, self.overlay.destroy)
         
     ## Telemetry functions
     def sanitize_exception(self, e):
@@ -147,7 +174,7 @@ class LetterApp:
         }
 
         try:
-            resp = requests.post(BACKEND_URL, json=event, timeout=60)
+            resp = requests.post(TELEMETRY_URL, json=event, timeout=60)
             if resp.status_code == 200:
                 return "sucess"
             else:
@@ -180,6 +207,37 @@ class LetterApp:
         self.save_settings()
         self.root.destroy()
 
+    def call_ai(self, action, extra=None):
+        text = self.input_text.get('1.0', 'end-1c')
+        if not text.strip():
+            return
+        
+        self.status_label.configure(text="🤖 AI processing...")
+        
+        def run():
+            try:
+                payload = {"action": action, "text": text}
+                if extra:
+                    payload["extra"] = extra
+                resp = requests.post(
+                    AI_URL,
+                    json=payload,
+                    timeout=30
+                )
+                if resp.status_code == 200:
+                    result = resp.json()["result"]
+                    self.root.after(0, lambda: self._apply_ai_result(result))
+                else:
+                    self.root.after(0, lambda: self.status_label.configure(text="❌ AI error!"))
+            except Exception as e:
+                self.root.after(0, lambda: self.status_label.configure(text="❌ AI connection failed!"))
+        
+        Thread(target=run, daemon=True).start()
+
+    def _apply_ai_result(self, result):
+        self.input_text.delete('1.0', 'end')
+        self.input_text.insert('1.0', result)
+        self.status_label.configure(text="✅ AI done!")
 
     def create_gui(self):
         if self.learning_mode:
@@ -259,6 +317,15 @@ class LetterApp:
             font=('Arial', 14, 'bold'),
             width=180
         ).pack(pady=10)
+        ctk.CTkButton(
+            header_frame,
+            text="Visit Status Page",
+            command=lambda: webbrowser.open("https://m9rgm51d.status.cron-job.org"),
+            fg_color="#04FF00",
+            text_color="white",
+            font=('Arial', 14, 'bold'),
+            width=180
+        ).pack(pady=10)
 
         
         # Settings button (gear icon)
@@ -281,6 +348,60 @@ class LetterApp:
         # Text input frame
         text_label = ctk.CTkLabel(main_frame, text="Text:", font=('Arial', 13, 'bold'))
         text_label.pack(anchor='w', pady=(15, 5))
+
+        # AI Button + Dropdown Menu
+        ai_frame = ctk.CTkFrame(main_frame)
+        ai_frame.pack(anchor='e', pady=(0, 5))
+
+        def show_ai_menu():
+            menu = Toplevel(self.root)
+            menu.overrideredirect(True)
+            menu.attributes("-topmost", True)
+            
+            btn_x = ai_btn.winfo_rootx()
+            btn_y = ai_btn.winfo_rooty() + ai_btn.winfo_height()
+            menu.geometry(f"210x290+{btn_x - 140}+{btn_y}")
+
+            is_dark = ctk.get_appearance_mode() == "Dark"
+            bg = "#2b2b2b" if is_dark else "#f0f0f0"
+            fg = "white" if is_dark else "black"
+            hover = "#3d3d3d" if is_dark else "#d0d0d0"
+            menu.configure(bg=bg)
+
+            actions = [
+                ("Correct spelling",  lambda: (menu.destroy(), self.call_ai("correct"))),
+                ("Shorten text",       lambda: (menu.destroy(), self.call_ai("shorten"))),
+                ("Make formal",        lambda: (menu.destroy(), self.call_ai("tone_formal"))),
+                ("Make casual",        lambda: (menu.destroy(), self.call_ai("tone_casual"))),
+                ("Generate text",      lambda: (menu.destroy(), self.call_ai("generate"))),
+                ("Fix unknown chars",  lambda: (menu.destroy(), self.call_ai("replace_unknown", {
+                    "known_chars": "".join(self.letter_db.keys())
+                }))),
+            ]
+
+            for label, cmd in actions:
+                ctk.CTkButton(
+                    menu, text=label, command=cmd,
+                    fg_color="transparent",
+                    text_color=fg,
+                    hover_color=hover,
+                    anchor="w", font=('Arial', 12), height=32
+                ).pack(fill=ctk.X, padx=2, pady=0)
+
+            menu.bind("<FocusOut>", lambda e: menu.destroy())
+            menu.focus_set()
+
+        ai_btn = ctk.CTkButton(
+            ai_frame,
+            text="✨AI",
+            command=show_ai_menu,
+            fg_color="#7719AA",
+            text_color="white",
+            font=('Arial', 12, 'bold'),
+            width=70,
+            height=28
+        )
+        ai_btn.pack(side=ctk.RIGHT, padx=5)
         
         text_frame = ctk.CTkFrame(main_frame)
         text_frame.pack(fill=ctk.BOTH, expand=True, pady=10)
@@ -595,6 +716,14 @@ class LetterApp:
         self.stop_drawing = False
         self.stop_button.configure(state='normal')
         self.status_label.configure(text="Please open OneNote now, starting in 4 seconds...")
+
+        self.total_chars = sum(
+            len([c for c in block['content'] if c not in (' ', '\n')])
+            if block['type'] == 'text'
+            else len([c for row in block['rows'] for c in ''.join(row) if c != ' '])
+            for block in blocks
+        )
+        self.drawn_chars = 0
         
         Thread(target=self.onenote_thread, args=(blocks,)).start()
 
@@ -621,6 +750,8 @@ class LetterApp:
     
     def onenote_thread(self, blocks):
         time.sleep(4)
+
+        self.root.after(0, self.show_progress_overlay)
         
         if self.stop_drawing:
             self.root.after(0, lambda: self.stop_button.configure(state='disabled'))
@@ -630,6 +761,7 @@ class LetterApp:
         if not hwnd:
             self.root.after(0, lambda: self.status_label.configure(text="Error: OneNote not found!"))
             self.root.after(0, lambda: self.stop_button.configure(state='disabled'))
+            self.root.after(0, self.close_progress_overlay)
             return
         
         win32gui.SetForegroundWindow(hwnd)
@@ -680,6 +812,8 @@ class LetterApp:
         
         self.root.after(0, lambda: self.stop_button.configure(state='disabled'))
 
+        self.root.after(0, self.close_progress_overlay)
+
     def _scroll_if_needed(self, current_lines):
         if current_lines >= 5:
             win32api.mouse_event(win32con.MOUSEEVENTF_WHEEL, 0, 0, -1000)
@@ -690,6 +824,10 @@ class LetterApp:
     def draw_character(self, ch, offset_x, offset_y, scale, jitter=True):
         if ch not in self.letter_db:
             return 0
+        
+        self.drawn_chars += 1
+        p = self.drawn_chars / self.total_chars
+        self.root.after(0, lambda v=p: self.overlay_bar.set(v))
 
         raw_width = self.get_letter_width(ch)
         letter_scale = scale * random.uniform(0.85, 1.0) if jitter else scale
