@@ -1,6 +1,6 @@
 # Text2Pen
 Text2Pen is a Tool that lets you write handwritten Text into OneNote by inputting Text.
-# SOME FEATURES ARE CURRENTLY UNAVAILABLE DUE TO LEGAL REASONS
+# SOME BACKEND FEATURES ARE CURRENTLY UNAVAILABLE DUE TO LEGAL REASONS
 
 # ---
 
