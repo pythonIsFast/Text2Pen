@@ -22,7 +22,7 @@ Use the tool only for personal, non-commercial purposes and at your own risk.
 ⚠️ Automatic Updates
 Text2Pen may replace or update its executable files automatically. Ensure you trust the source before running updates.
 
-⚠️This tool currently only works on Windows⚠️
+⚠️This tool currently only works on Windows
 
 # ---
 
