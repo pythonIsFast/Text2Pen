@@ -22,9 +22,7 @@ It is especially useful for students, note-takers, and anyone who wants the aest
 
 ---
 
-## 🚀 How do I use it?
-
-### Installation
+## 🚀 Installation
 
 1. Download the latest **Installer.exe** from the [Releases](https://github.com/pythonIsFast/Text2Pen/releases/latest) page.
 2. Run `Installer.exe` and click **Install**.
@@ -33,7 +31,7 @@ It is especially useful for students, note-takers, and anyone who wants the aest
    - The updater (`Update.exe`) is registered to run on startup.
 3. Launch **Text2Pen** from the Start Menu.
 
-### Usage
+## ▶️ Usage
 
 1. Open Microsoft OneNote and navigate to the page where you want to write.
 2. Start **Text2Pen**.
@@ -126,3 +124,30 @@ You can disable telemetry at any time in the application settings. Once disabled
 ### 8. Contact
 
 If you have questions about privacy or data handling, please open a [GitHub Issue](https://github.com/pythonIsFast/Text2Pen/issues).
+
+## 🤝 Contributing
+
+Contributions are welcome and appreciated.
+
+### How to contribute
+
+1. Fork the repository
+2. Create a new branch (`feature/your-feature-name`)
+3. Make your changes
+4. Commit your changes
+5. Open a pull request
+
+### What you can contribute
+
+- Bug fixes
+- Performance improvements
+- UI/UX enhancements
+- Documentation improvements
+
+### Guidelines
+
+- Keep changes focused and minimal
+- Write clear commit messages
+- Ensure the application still works correctly
+
+For larger changes, please open an issue first to discuss your idea.
