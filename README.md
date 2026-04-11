@@ -151,3 +151,19 @@ Contributions are welcome and appreciated.
 - Ensure the application still works correctly
 
 For larger changes, please open an issue first to discuss your idea.
+
+---
+
+## 📜 License
+
+Text2Pen Backend is licensed under the **GNU General Public License v3.0 (GPL-3.0)**.
+
+See the [LICENSE](LICENSE) file for details.
+
+---
+
+## 🔗 Related Projects
+
+- **[Text2Pen Backend](https://github.com/pythonIsFast/Text2Pen-Backend)** — the Text2Pen Backend
+
+---
