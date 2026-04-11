@@ -294,7 +294,7 @@ class AIChatSidebar:
                 }
                 # timeout=(connect_timeout, read_timeout)
                 # Connect must succeed in 10s (server is always up).
-                # Read timeout: None = wait forever for Mistral to respond.
+                # Read timeout: None = wait forever for Backend to respond.
                 # The backend itself has a 90s hard limit, so it will always reply eventually.
                 resp = requests.post(AI_CHAT_URL, json=payload, timeout=(10, None))
                 if resp.status_code == 200:
