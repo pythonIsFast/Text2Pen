@@ -50,7 +50,7 @@ Run `Installer.exe` again and click **Uninstall**. All files and shortcuts are r
 |---|---|
 | Text → Handwriting | Converts typed text to handwritten ink in OneNote |
 | Table input | Tab-separated text is inserted as a table |
-| AI Chat Sidebar | Built-in assistant with model selection and image upload |
+| AI Chat Sidebar | Built-in assistant with chat and image upload |
 | Automatic Updates | Background updater with SHA-256 integrity verification |
 | Optional Telemetry | Anonymous crash/error reporting (opt-in, disabled by default) |
 | Windows-native | Deep integration via Win32 API |
@@ -59,8 +59,8 @@ Run `Installer.exe` again and click **Uninstall**. All files and shortcuts are r
 
 ## ⚠️ Limitations
 
-- **Windows only** — Text2Pen uses the Win32 API and only runs on Windows.
-- **Requires Microsoft OneNote** — the desktop version must be open and in focus when writing.
+- **Windows only** — Text2Pen uses the Win32 API and only runs on Windows (Linux build coming soon!).
+- **Requires Microsoft OneNote** — the desktop or Web version must be open and in focus when writing.
 - **Backend / AI features temporarily unavailable** — some backend-dependent features (AI chat, AI text generation) are currently disabled due to legal reasons.
 
 ---
