@@ -32,37 +32,53 @@ jobs:
         include:
           - os: windows-latest
             label: windows
-          # 22.04 rather than the rolling ubuntu-latest: PyInstaller freezes
-          # against the build machine's glibc, and an older baseline keeps
-          # the binary runnable on users' (likely older) systems too.
-          - os: ubuntu-22.04
+          # Self-hosted (a Raspberry Pi) rather than a GitHub-hosted runner.
+          # NOTE: this makes the Linux build an ARM binary, not x86_64 — it
+          # will only run on ARM Linux (e.g. other Pis), not typical x86_64
+          # desktops. If both are needed, add back a GitHub-hosted
+          # `ubuntu-22.04` leg alongside this one.
+          - os: [self-hosted, Linux]
             label: linux
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
+      # actions/setup-python doesn't reliably have a matching download for
+      # every Python version on ARM, and isn't needed anyway: the self-hosted
+      # runner is a persistent machine with its own system Python already
+      # set up (see the apt note below), unlike an ephemeral GitHub-hosted VM.
       - uses: actions/setup-python@v5
+        if: matrix.label == 'windows'
         with:
           python-version: "3.12"
 
-      # pywebview renders through WebKitGTK on Linux, and the new portal
-      # screen-capture code (backend/portal_capture.py) needs GLib/D-Bus/
-      # GStreamer bindings. None of this is pip-installable; it has to come
-      # from apt, on the same interpreter pip installs into (no venv here).
-      - name: Install Linux system dependencies
-        if: matrix.label == 'linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            python3-gi gir1.2-webkit2-4.1 python3-tk \
-            gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-base \
-            gstreamer1.0-plugins-good gstreamer1.0-pipewire \
-            python3-dbus libgirepository1.0-dev
+      # Deliberately no apt-get step for Linux here: the self-hosted runner
+      # is a persistent machine, so system packages only need installing
+      # once, by hand, not on every run:
+      #   sudo apt-get install -y python3-gi gir1.2-webkit2-4.1 python3-tk \
+      #     gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-base \
+      #     gstreamer1.0-plugins-good gstreamer1.0-pipewire \
+      #     python3-dbus libgirepository1.0-dev python3-venv \
+      #     build-essential python3-dev
+      # (the last three are for pip to build python-uinput/pynput from
+      # source on ARM, where prebuilt wheels are less common.)
 
-      - name: Install Python dependencies
+      - name: Install Python dependencies (Windows)
+        if: matrix.label == 'windows'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
+
+      # --system-site-packages: pywebview's WebKitGTK bindings and the
+      # portal-capture GLib/GStreamer bindings only exist as apt packages
+      # (see above), not on PyPI, so the venv needs to see the system ones.
+      - name: Install Python dependencies (Linux)
+        if: matrix.label == 'linux'
+        run: |
+          rm -rf venv
+          python3 -m venv --system-site-packages venv
+          venv/bin/pip install --upgrade pip
+          venv/bin/pip install -r requirements.txt pyinstaller
 
       - name: Build Text2Pen (Windows)
         if: matrix.label == 'windows'
@@ -70,13 +86,23 @@ jobs:
 
       - name: Build Text2Pen (Linux)
         if: matrix.label == 'linux'
-        run: pyinstaller --onefile --noconsole --add-data "webui:webui" --name Text2Pen Text2Pen.py
+        run: venv/bin/pyinstaller --onefile --noconsole --add-data "webui:webui" --name Text2Pen Text2Pen.py
 
-      - name: Build Update
+      - name: Build Update (Windows)
+        if: matrix.label == 'windows'
         run: pyinstaller --onefile --noconsole --name Update Update.py
 
-      - name: Build Installer
+      - name: Build Update (Linux)
+        if: matrix.label == 'linux'
+        run: venv/bin/pyinstaller --onefile --noconsole --name Update Update.py
+
+      - name: Build Installer (Windows)
+        if: matrix.label == 'windows'
         run: pyinstaller --onefile --noconsole --name Installer Installer.py
+
+      - name: Build Installer (Linux)
+        if: matrix.label == 'linux'
+        run: venv/bin/pyinstaller --onefile --noconsole --name Installer Installer.py
 
       - name: Upload Text2Pen artifact
         uses: actions/upload-artifact@v4
