@@ -1,11 +1,11 @@
 name: Build executables
 
 # Workflow 1 of 2: builds the three PyInstaller executables (Text2Pen, Update,
-# Installer) for Windows and Linux and uploads them as separate build
-# artifacts. It does not touch GitHub Releases — that's workflow 2, which will
-# take these artifacts and publish them as individual release assets, the
-# same way existing releases already do (so in-place updates via Update.exe
-# keep working).
+# Installer) for Windows and every supported Linux architecture, and uploads
+# them as separate build artifacts. It does not touch GitHub Releases —
+# that's workflow 2, which will take these artifacts and publish them as
+# individual release assets, the same way existing releases already do (so
+# in-place updates via Update.exe keep working).
 #
 # `workflow_call` is included so a future release workflow can trigger a
 # fresh build directly instead of reusing old artifacts.
@@ -32,13 +32,27 @@ jobs:
         include:
           - os: windows-latest
             label: windows
-          # Self-hosted (a Raspberry Pi) rather than a GitHub-hosted runner.
-          # NOTE: this makes the Linux build an ARM binary, not x86_64 — it
-          # will only run on ARM Linux (e.g. other Pis), not typical x86_64
-          # desktops. If both are needed, add back a GitHub-hosted
-          # `ubuntu-22.04` leg alongside this one.
-          - os: [self-hosted, Linux]
-            label: linux
+            hosted: github
+            pyinstaller: pyinstaller
+            add_data_sep: ";"
+            exe_suffix: ".exe"
+          # GitHub-hosted, so a fresh x86_64 VM every run: the common case,
+          # what almost every Linux desktop needs.
+          - os: ubuntu-22.04
+            label: linux-x86_64
+            hosted: github
+            pyinstaller: pyinstaller
+            add_data_sep: ":"
+            exe_suffix: ""
+          # Self-hosted (a Raspberry Pi) — the only realistic way to get an
+          # ARM64 build without cross-compiling. NOTE: this binary only runs
+          # on ARM64 Linux (other Pis, ARM SBCs), never on x86_64 desktops.
+          - os: [self-hosted, Linux, ARM64]
+            label: linux-arm64
+            hosted: self
+            pyinstaller: venv/bin/pyinstaller
+            add_data_sep: ":"
+            exe_suffix: ""
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -48,13 +62,26 @@ jobs:
       # runner is a persistent machine with its own system Python already
       # set up (see the apt note below), unlike an ephemeral GitHub-hosted VM.
       - uses: actions/setup-python@v5
-        if: matrix.label == 'windows'
+        if: matrix.hosted == 'github'
         with:
           python-version: "3.12"
 
-      # Deliberately no apt-get step for Linux here: the self-hosted runner
-      # is a persistent machine, so system packages only need installing
-      # once, by hand, not on every run:
+      # pywebview renders through WebKitGTK on Linux, and the portal
+      # screen-capture code (backend/portal_capture.py) needs GLib/D-Bus/
+      # GStreamer bindings. None of this is pip-installable; it has to come
+      # from apt, on the same interpreter pip installs into.
+      - name: Install Linux system dependencies
+        if: matrix.label == 'linux-x86_64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-gi gir1.2-webkit2-4.1 python3-tk \
+            gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good gstreamer1.0-pipewire \
+            python3-dbus libgirepository1.0-dev
+
+      # The self-hosted runner is persistent, not an ephemeral VM: install
+      # these once by hand instead, so every run doesn't re-apt-get them:
       #   sudo apt-get install -y python3-gi gir1.2-webkit2-4.1 python3-tk \
       #     gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-base \
       #     gstreamer1.0-plugins-good gstreamer1.0-pipewire \
@@ -63,64 +90,49 @@ jobs:
       # (the last three are for pip to build python-uinput/pynput from
       # source on ARM, where prebuilt wheels are less common.)
 
-      - name: Install Python dependencies (Windows)
-        if: matrix.label == 'windows'
+      - name: Install Python dependencies (GitHub-hosted)
+        if: matrix.hosted == 'github'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
 
-      # --system-site-packages: pywebview's WebKitGTK bindings and the
-      # portal-capture GLib/GStreamer bindings only exist as apt packages
-      # (see above), not on PyPI, so the venv needs to see the system ones.
-      - name: Install Python dependencies (Linux)
-        if: matrix.label == 'linux'
+      # --system-site-packages: the apt packages above (WebKitGTK/GStreamer
+      # bindings) only exist system-wide, not on PyPI, so the venv needs to
+      # see them. Recreated every run for a clean, reproducible build.
+      - name: Install Python dependencies (self-hosted)
+        if: matrix.hosted == 'self'
         run: |
           rm -rf venv
           python3 -m venv --system-site-packages venv
           venv/bin/pip install --upgrade pip
           venv/bin/pip install -r requirements.txt pyinstaller
 
-      - name: Build Text2Pen (Windows)
-        if: matrix.label == 'windows'
-        run: pyinstaller --onefile --noconsole --add-data "webui;webui" --name Text2Pen Text2Pen.py
+      - name: Build Text2Pen
+        run: ${{ matrix.pyinstaller }} --onefile --noconsole --add-data "webui${{ matrix.add_data_sep }}webui" --name Text2Pen Text2Pen.py
 
-      - name: Build Text2Pen (Linux)
-        if: matrix.label == 'linux'
-        run: venv/bin/pyinstaller --onefile --noconsole --add-data "webui:webui" --name Text2Pen Text2Pen.py
+      - name: Build Update
+        run: ${{ matrix.pyinstaller }} --onefile --noconsole --name Update Update.py
 
-      - name: Build Update (Windows)
-        if: matrix.label == 'windows'
-        run: pyinstaller --onefile --noconsole --name Update Update.py
-
-      - name: Build Update (Linux)
-        if: matrix.label == 'linux'
-        run: venv/bin/pyinstaller --onefile --noconsole --name Update Update.py
-
-      - name: Build Installer (Windows)
-        if: matrix.label == 'windows'
-        run: pyinstaller --onefile --noconsole --name Installer Installer.py
-
-      - name: Build Installer (Linux)
-        if: matrix.label == 'linux'
-        run: venv/bin/pyinstaller --onefile --noconsole --name Installer Installer.py
+      - name: Build Installer
+        run: ${{ matrix.pyinstaller }} --onefile --noconsole --name Installer Installer.py
 
       - name: Upload Text2Pen artifact
         uses: actions/upload-artifact@v4
         with:
           name: Text2Pen-${{ matrix.label }}${{ inputs.version != '' && format('-{0}', inputs.version) || '' }}
-          path: dist/Text2Pen${{ matrix.label == 'windows' && '.exe' || '' }}
+          path: dist/Text2Pen${{ matrix.exe_suffix }}
           if-no-files-found: error
 
       - name: Upload Update artifact
         uses: actions/upload-artifact@v4
         with:
           name: Update-${{ matrix.label }}${{ inputs.version != '' && format('-{0}', inputs.version) || '' }}
-          path: dist/Update${{ matrix.label == 'windows' && '.exe' || '' }}
+          path: dist/Update${{ matrix.exe_suffix }}
           if-no-files-found: error
 
       - name: Upload Installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: Installer-${{ matrix.label }}${{ inputs.version != '' && format('-{0}', inputs.version) || '' }}
-          path: dist/Installer${{ matrix.label == 'windows' && '.exe' || '' }}
+          path: dist/Installer${{ matrix.exe_suffix }}
           if-no-files-found: error

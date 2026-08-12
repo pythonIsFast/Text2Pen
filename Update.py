@@ -8,11 +8,12 @@ import threading
 import io
 import hashlib
 
-from backend.paths import APP_DATA_DIR, IS_LINUX, exe_name
+from backend.paths import APP_DATA_DIR, IS_LINUX, exe_name, release_asset_name
 
 APP_NAME = "Text2Pen"
 
-# Installation paths
+# Installation paths (local filenames — no CPU-architecture tag; that only
+# matters for picking the right download, below)
 INSTALL_DIR = APP_DATA_DIR
 TEXT2PEN_NAME = exe_name("Text2Pen")
 UPDATE_NAME = exe_name("Update")
@@ -22,9 +23,12 @@ UPDATE_PATH = os.path.join(INSTALL_DIR, UPDATE_NAME)
 #Temp paths
 UPDATE_TEMP = UPDATE_PATH + "-newest"
 
-# URLs
-TEXT2PEN_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{TEXT2PEN_NAME}"
-UPDATE_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{UPDATE_NAME}"
+# Release asset names (architecture-specific on Linux — a release holds an
+# x86_64 and an arm64 binary side by side) and the URLs/hash keys built from them
+TEXT2PEN_ASSET = release_asset_name("Text2Pen")
+UPDATE_ASSET = release_asset_name("Update")
+TEXT2PEN_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{TEXT2PEN_ASSET}"
+UPDATE_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{UPDATE_ASSET}"
 
 class UpdateApp():
     def __init__(self, root):
@@ -50,7 +54,7 @@ class UpdateApp():
             print("Checking GitHub release...")
             hashes = self.get_release_hashes()
 
-            github_hash = hashes[TEXT2PEN_NAME]
+            github_hash = hashes[TEXT2PEN_ASSET]
 
             if os.path.exists(TEXT2PEN_PATH):
                 local_hash = self.sha256_file(TEXT2PEN_PATH)
@@ -65,14 +69,14 @@ class UpdateApp():
                     new_hash = self.sha256_bytes(new_data)
 
                     if new_hash != github_hash:
-                        raise ValueError(f"Downloaded {TEXT2PEN_NAME} failed SHA256 verification")
+                        raise ValueError(f"Downloaded {TEXT2PEN_ASSET} failed SHA256 verification")
             else:
                 self.status_label.config(text="Downloading Text2Pen...")
                 new_data = self.download_file_ram(TEXT2PEN_URL)
                 new_hash = self.sha256_bytes(new_data)
 
                 if new_hash != github_hash:
-                    raise ValueError(f"Downloaded {TEXT2PEN_NAME} failed SHA256 verification")
+                    raise ValueError(f"Downloaded {TEXT2PEN_ASSET} failed SHA256 verification")
 
             if os.path.exists(TEXT2PEN_PATH):
                 if new_data is not None:
@@ -85,7 +89,7 @@ class UpdateApp():
                 self.write_file_once(temp_path, new_data)
                 self.replace_file(temp_path, TEXT2PEN_PATH)
             
-            github_updater_hash = hashes[UPDATE_NAME]
+            github_updater_hash = hashes[UPDATE_ASSET]
 
             if os.path.exists(UPDATE_PATH):
                 local_updater_hash = self.sha256_file(UPDATE_PATH)
@@ -99,7 +103,7 @@ class UpdateApp():
                     new_updater_hash = self.sha256_bytes(updater_data)
 
                     if new_updater_hash != github_updater_hash:
-                        raise ValueError(f"Downloaded {UPDATE_NAME} failed SHA256 verification")
+                        raise ValueError(f"Downloaded {UPDATE_ASSET} failed SHA256 verification")
             else:
                 self.status_label.config(text="Downloading Updater...")
                 updater_data = self.download_file_ram(UPDATE_URL)
@@ -107,13 +111,23 @@ class UpdateApp():
                 new_updater_hash = self.sha256_bytes(updater_data)
 
                 if new_updater_hash != github_updater_hash:
-                    raise ValueError(f"Downloaded {UPDATE_NAME} failed SHA256 verification")
+                    raise ValueError(f"Downloaded {UPDATE_ASSET} failed SHA256 verification")
 
             if os.path.exists(UPDATE_PATH):
                 if updater_data is not None:
                     self.write_file_once(UPDATE_TEMP, updater_data)
+                    # Windows locks a running .exe, so the swap has to wait
+                    # for Text2Pen.py's handoff logic on next launch. Linux
+                    # has no such lock — a process can replace its own
+                    # file while running — so finish the swap here directly;
+                    # otherwise Update would re-download "the newest" every
+                    # run forever without ever actually becoming current.
+                    if IS_LINUX:
+                        self.replace_file(UPDATE_TEMP, UPDATE_PATH)
             else:
                 self.write_file_once(UPDATE_TEMP, updater_data)
+                if IS_LINUX:
+                    self.replace_file(UPDATE_TEMP, UPDATE_PATH)
 
             self.status_label.config(text="Update finished!")
             self.progress_var.set(100)

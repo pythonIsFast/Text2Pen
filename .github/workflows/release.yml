@@ -1,5 +1,4 @@
 name: Create release
-#
 
 # Workflow 2 of 2: runs build.yml for a fresh set of executables, renames
 # them to their final release filenames, and publishes a new GitHub Release
@@ -62,7 +61,12 @@ jobs:
       # find, not a hardcoded nested path: upload-artifact's exact internal
       # layout for a single-file `path:` has shifted across versions, so this
       # locates each binary by name inside its artifact folder instead of
-      # assuming where under it it landed.
+      # assuming where under it it landed. The Linux binaries also get
+      # renamed here: inside the artifact they're just "Text2Pen" etc. (see
+      # build.yml), but a release holds x86_64 and arm64 side by side, so
+      # the uploaded asset name has to disambiguate — matches
+      # backend/paths.py's release_asset_name(), which is what Update.py and
+      # Installer.py use to pick the right one back up.
       - name: Lay out release assets with their final names
         run: |
           set -euo pipefail
@@ -70,24 +74,24 @@ jobs:
 
           copy_asset() {
             local artifact_dir="artifacts/$1"
-            local filename="$2"
+            local src_filename="$2"
+            local dest_filename="$3"
             local found
-            found=$(find "$artifact_dir" -type f -name "$filename" | head -n1)
+            found=$(find "$artifact_dir" -type f -name "$src_filename" | head -n1)
             if [ -z "$found" ]; then
-              echo "::error::Could not find $filename in $artifact_dir"
+              echo "::error::Could not find $src_filename in $artifact_dir"
               exit 1
             fi
-            cp "$found" "release/$filename"
+            cp "$found" "release/$dest_filename"
           }
 
-          copy_asset "Text2Pen-windows-${{ inputs.version }}"   "Text2Pen.exe"
-          copy_asset "Update-windows-${{ inputs.version }}"     "Update.exe"
-          copy_asset "Installer-windows-${{ inputs.version }}"  "Installer.exe"
-          copy_asset "Text2Pen-linux-${{ inputs.version }}"     "Text2Pen"
-          copy_asset "Update-linux-${{ inputs.version }}"       "Update"
-          copy_asset "Installer-linux-${{ inputs.version }}"    "Installer"
+          for name in Text2Pen Update Installer; do
+            copy_asset "$name-windows-${{ inputs.version }}"      "$name.exe" "$name.exe"
+            copy_asset "$name-linux-x86_64-${{ inputs.version }}" "$name"     "$name-linux-x86_64"
+            copy_asset "$name-linux-arm64-${{ inputs.version }}"  "$name"     "$name-linux-arm64"
+          done
 
-          chmod +x release/Text2Pen release/Update release/Installer
+          chmod +x release/*-linux-x86_64 release/*-linux-arm64
           ls -la release/
 
       - name: Create GitHub release
@@ -97,10 +101,4 @@ jobs:
           name: ${{ inputs.version }}
           body: ${{ inputs.release_notes }}
           prerelease: ${{ inputs.prerelease }}
-          files: |
-            release/Text2Pen.exe
-            release/Update.exe
-            release/Installer.exe
-            release/Text2Pen
-            release/Update
-            release/Installer
+          files: release/*

@@ -36,11 +36,29 @@ def get_app_data_dir():
 
 
 def exe_name(base):
-    """`base` with the platform-appropriate executable suffix: Installer.py,
-    Update.py and Text2Pen.py all ship as "<name>.exe" on Windows and a
-    plain, extension-less "<name>" on Linux (matches the release asset
-    names uploaded by .github/workflows/build.yml)."""
+    """`base` with the platform-appropriate executable suffix, for the LOCAL
+    on-disk filename: Installer.py, Update.py and Text2Pen.py all install as
+    "<name>.exe" on Windows and a plain, extension-less "<name>" on Linux,
+    regardless of CPU architecture. For the GitHub release asset name (which
+    does vary by architecture, since one release holds every arch's binary
+    side by side), see release_asset_name()."""
     return f"{base}.exe" if IS_WINDOWS else base
+
+
+_LINUX_ARCH_TAGS = {"x86_64": "x86_64", "aarch64": "arm64", "arm64": "arm64"}
+
+
+def release_asset_name(base):
+    """`base`'s filename as uploaded to a GitHub Release. Matches the
+    `label` values in .github/workflows/build.yml's matrix, e.g.
+    "Text2Pen-linux-x86_64" or "Text2Pen-linux-arm64" — used to build
+    download URLs and to look up the right SHA256 from the release's asset
+    list (see Update.py, Installer.py)."""
+    if IS_WINDOWS:
+        return f"{base}.exe"
+    arch = platform.machine()
+    arch_tag = _LINUX_ARCH_TAGS.get(arch, arch)
+    return f"{base}-linux-{arch_tag}"
 
 
 APP_DATA_DIR = get_app_data_dir()

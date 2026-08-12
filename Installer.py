@@ -5,21 +5,26 @@ from tkinter import messagebox, ttk
 
 import requests
 
-from backend.paths import APP_DATA_DIR, IS_LINUX, IS_WINDOWS, ensure_app_data_dir, exe_name
+from backend.paths import (APP_DATA_DIR, IS_LINUX, IS_WINDOWS, ensure_app_data_dir,
+                           exe_name, release_asset_name)
 
 if IS_WINDOWS:
     import win32com.client
 
 APP_NAME = "Text2Pen"
 
+# Local filenames — no CPU-architecture tag; that only matters for picking
+# the right download, below.
 INSTALL_DIR = APP_DATA_DIR
 EXE_NAME = exe_name("Text2Pen")
 UPDATE_NAME = exe_name("Update")
 EXE_PATH = os.path.join(INSTALL_DIR, EXE_NAME)
 UPDATE_PATH = os.path.join(INSTALL_DIR, UPDATE_NAME)
 
-DOWNLOAD_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{EXE_NAME}"
-UPDATE_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{UPDATE_NAME}"
+# Release asset names are architecture-specific on Linux (a release holds an
+# x86_64 and an arm64 binary side by side).
+DOWNLOAD_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{release_asset_name('Text2Pen')}"
+UPDATE_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{release_asset_name('Update')}"
 
 if IS_WINDOWS:
     STARTUP_DIR = os.path.join(
