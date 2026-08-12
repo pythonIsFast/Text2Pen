@@ -1,4 +1,5 @@
 name: Create release
+#
 
 # Workflow 2 of 2: runs build.yml for a fresh set of executables, renames
 # them to their final release filenames, and publishes a new GitHub Release
