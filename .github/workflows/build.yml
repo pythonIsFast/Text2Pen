@@ -1,0 +1,107 @@
+name: Build executables
+
+# Workflow 1 of 2: builds the three PyInstaller executables (Text2Pen, Update,
+# Installer) for Windows and Linux and uploads them as separate build
+# artifacts. It does not touch GitHub Releases — that's workflow 2, which will
+# take these artifacts and publish them as individual release assets, the
+# same way existing releases already do (so in-place updates via Update.exe
+# keep working).
+#
+# `workflow_call` is included so a future release workflow can trigger a
+# fresh build directly instead of reusing old artifacts.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Optional label appended to artifact names (e.g. v2.8)."
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      version:
+        description: "Optional label appended to artifact names (e.g. v2.8)."
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows
+          # 22.04 rather than the rolling ubuntu-latest: PyInstaller freezes
+          # against the build machine's glibc, and an older baseline keeps
+          # the binary runnable on users' (likely older) systems too.
+          - os: ubuntu-22.04
+            label: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # pywebview renders through WebKitGTK on Linux, and the new portal
+      # screen-capture code (backend/portal_capture.py) needs GLib/D-Bus/
+      # GStreamer bindings. None of this is pip-installable; it has to come
+      # from apt, on the same interpreter pip installs into (no venv here).
+      - name: Install Linux system dependencies
+        if: matrix.label == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-gi gir1.2-webkit2-4.1 \
+            gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good gstreamer1.0-pipewire \
+            python3-dbus libgirepository1.0-dev
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Build Text2Pen (Windows)
+        if: matrix.label == 'windows'
+        run: pyinstaller --onefile --noconsole --add-data "webui;webui" --name Text2Pen Text2Pen.py
+
+      - name: Build Text2Pen (Linux)
+        if: matrix.label == 'linux'
+        run: pyinstaller --onefile --noconsole --add-data "webui:webui" --name Text2Pen Text2Pen.py
+
+      - name: Build Update
+        run: pyinstaller --onefile --noconsole --name Update Update.py
+
+      # Installer.py still does `import win32com.client` and reads
+      # LOCALAPPDATA/APPDATA at module level — it's Windows-only code, not
+      # just a Windows-only build target. PyInstaller can't resolve
+      # win32com.client on Linux at all, so this step is Windows-only until
+      # Installer.py itself is adapted; drop the `if:` once that's done.
+      - name: Build Installer (Windows only for now)
+        if: matrix.label == 'windows'
+        run: pyinstaller --onefile --noconsole --name Installer Installer.py
+
+      - name: Upload Text2Pen artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Text2Pen-${{ matrix.label }}${{ inputs.version != '' && format('-{0}', inputs.version) || '' }}
+          path: dist/Text2Pen${{ matrix.label == 'windows' && '.exe' || '' }}
+          if-no-files-found: error
+
+      - name: Upload Update artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Update-${{ matrix.label }}${{ inputs.version != '' && format('-{0}', inputs.version) || '' }}
+          path: dist/Update${{ matrix.label == 'windows' && '.exe' || '' }}
+          if-no-files-found: error
+
+      - name: Upload Installer artifact
+        if: matrix.label == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Installer-${{ matrix.label }}${{ inputs.version != '' && format('-{0}', inputs.version) || '' }}
+          path: dist/Installer.exe
+          if-no-files-found: error

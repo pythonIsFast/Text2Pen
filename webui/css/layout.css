@@ -1,0 +1,161 @@
+/* App shell: top bar, view area, AI drawer. */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* ── top bar ──────────────────────────────────────────────────────── */
+.topbar {
+  height: var(--topbar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 18px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--border);
+  z-index: 20;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.brand__mark {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-deep), var(--accent-hi));
+  box-shadow: 0 4px 14px var(--accent-ring);
+}
+.brand__mark svg { width: 19px; height: 19px; }
+
+.brand__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 0;
+}
+.brand__text strong { font-size: 15px; letter-spacing: -0.01em; }
+.brand__text span {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ── body ─────────────────────────────────────────────────────────── */
+.body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--gap);
+}
+
+.view { display: none; }
+.view.is-active { display: block; animation: view-in 0.28s var(--ease); }
+
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── grids ────────────────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: var(--gap);
+  align-items: start;
+}
+
+.grid--learn { grid-template-columns: minmax(0, 1fr) 300px; }
+
+@media (max-width: 1120px) {
+  .grid, .grid--learn { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ── AI drawer ────────────────────────────────────────────────────── */
+.drawer {
+  width: 0;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-elev);
+  border-left: 1px solid transparent;
+  transition: width 0.3s var(--ease), border-color 0.3s var(--ease);
+}
+
+.drawer.is-open {
+  width: var(--drawer-w);
+  border-left-color: var(--border);
+}
+
+.drawer__head {
+  flex: none;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 0 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.drawer__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+  font-size: 14px;
+  margin-right: auto;
+  white-space: nowrap;
+}
+.drawer__title svg { color: var(--accent); width: 16px; height: 16px; }
+
+.drawer__limits {
+  flex: none;
+  padding: 9px 16px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .drawer.is-open { width: 100%; position: absolute; inset: var(--topbar-h) 0 0 auto; z-index: 30; }
+}

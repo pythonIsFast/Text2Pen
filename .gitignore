@@ -1,0 +1,12 @@
+venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+.idea/
+.vscode/
+
+# PyInstaller build output
+build/
+dist/
+*.spec

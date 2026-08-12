@@ -1,0 +1,26 @@
+# Core
+pywebview>=6.0
+requests>=2.31
+psutil>=5.9
+pillow>=10.0
+
+# Linux-only (input simulation)
+pynput>=1.8; sys_platform == "linux"
+python-uinput>=0.11.2; sys_platform == "linux"
+
+# Windows-only (OneNote window handling, low-level input)
+pywin32>=306; sys_platform == "win32"
+
+# ── System packages (NOT installable via pip) ────────────────────────────
+# Linux: pywebview renders through WebKitGTK and needs the GObject bindings.
+#   sudo apt install python3-gi gir1.2-webkit2-4.1
+# If you use a virtualenv it must be able to see them, either
+#   python3 -m venv --system-site-packages venv
+# or set `include-system-site-packages = true` in venv/pyvenv.cfg.
+#
+# Pointer control writes to /dev/uinput. To avoid running as root, grant the
+# "input" group access once:
+#   echo 'KERNEL=="uinput", GROUP="input", MODE="0660"' \
+#     | sudo tee /etc/udev/rules.d/99-uinput.rules
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+#   sudo usermod -aG input "$USER"    # then log out and back in

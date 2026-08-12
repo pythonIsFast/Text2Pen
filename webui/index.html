@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Text2Pen</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <script>
+    /* Event bus, defined before any module loads. Python may emit while the
+       modules are still being fetched, so unheard events are buffered. */
+    (function () {
+      const handlers = {};
+      const pending = [];
+      window.T2P = {
+        on(evt, fn) {
+          (handlers[evt] = handlers[evt] || []).push(fn);
+          const buffered = pending.filter(p => p.evt === evt);
+          if (buffered.length) {
+            for (let i = pending.length - 1; i >= 0; i--) {
+              if (pending[i].evt === evt) pending.splice(i, 1);
+            }
+            buffered.forEach(p => fn(p.payload));
+          }
+          return this;
+        },
+        emit(evt, payload) {
+          const list = handlers[evt];
+          if (!list || !list.length) { pending.push({ evt, payload }); return; }
+          list.forEach(fn => { try { fn(payload); } catch (e) { console.error(e); } });
+        }
+      };
+    })();
+  </script>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ───────────────────────────── top bar ───────────────────────────── -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 20h4L20 8a2.8 2.8 0 0 0-4-4L4 16v4Z"/>
+          <path d="M14.5 5.5 18.5 9.5"/>
+        </svg>
+      </div>
+      <div class="brand__text">
+        <strong>Text2Pen</strong>
+        <span id="brand-sub">Handwriting for OneNote</span>
+      </div>
+    </div>
+
+    <nav class="segmented" id="nav" role="tablist">
+      <button class="segmented__btn is-active" data-view="editor" role="tab">Write</button>
+      <button class="segmented__btn" data-view="learn" role="tab">
+        Train <span class="segmented__badge" id="nav-learn-badge">0/0</span>
+      </button>
+    </nav>
+
+    <div class="topbar__actions">
+      <button class="btn btn--ghost btn--icon" id="btn-website" title="Website" aria-label="Website">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 2.5 15.4 0 18M12 3c-2.5 2.6-2.5 15.4 0 18"/></svg>
+      </button>
+      <button class="btn btn--ghost btn--icon" id="btn-status" title="Service status" aria-label="Service status">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>
+      </button>
+      <button class="btn btn--accent" id="btn-ai">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/></svg>
+        AI Chat
+      </button>
+      <button class="btn btn--ghost btn--icon" id="btn-settings" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+             stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.6 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 11.5 4a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 19.4 11a2 2 0 1 1 0 4Z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ───────────────────────────── body ───────────────────────────── -->
+  <div class="body">
+    <main class="main" id="main">
+
+      <div class="banner banner--warn is-hidden" id="banner-root">
+        <strong>Running as root.</strong>
+        <span id="banner-root-text"></span>
+      </div>
+
+      <div class="banner banner--danger is-hidden" id="banner-input">
+        <strong>No input device.</strong>
+        <span id="banner-input-text"></span>
+      </div>
+
+      <!-- ── write view ────────────────────────────────────────────── -->
+      <section class="view is-active" id="view-editor">
+        <div class="grid">
+          <div class="card card--main">
+            <div class="card__head">
+              <div>
+                <h2 class="card__title">Your text</h2>
+                <p class="card__sub" id="editor-hint">Place the cursor where writing should begin, then start.</p>
+              </div>
+              <div class="card__head-actions">
+                <div class="dropdown" id="quick-ai">
+                  <button class="btn btn--subtle btn--sm" id="quick-ai-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                         stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/></svg>
+                    Quick AI
+                  </button>
+                  <div class="dropdown__menu" id="quick-ai-menu" hidden>
+                    <button data-action="correct">Spell check</button>
+                    <button data-action="shorten">Shorten</button>
+                    <button data-action="tone_formal">Make formal</button>
+                    <button data-action="tone_casual">Make casual</button>
+                    <button data-action="generate">Generate text</button>
+                    <div class="dropdown__sep"></div>
+                    <button data-action="replace_unknown">Fix untrained characters</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <textarea id="input-text" class="textarea" spellcheck="false"
+                      placeholder="Type or paste your text here…&#10;&#10;Tip: separate cells with tabs to draw a table."></textarea>
+
+            <div class="editor__meta">
+              <span id="meta-count">0 characters</span>
+              <span class="dot"></span>
+              <span id="meta-unknown" class="meta-ok">All characters trained</span>
+            </div>
+          </div>
+
+          <aside class="card card--side">
+            <h2 class="card__title">Run</h2>
+
+            <div class="statuspill" id="statuspill">
+              <span class="statuspill__dot"></span>
+              <span id="status-text">Ready</span>
+            </div>
+
+            <div class="progress is-hidden" id="progress">
+              <div class="progress__track"><div class="progress__fill" id="progress-fill"></div></div>
+              <div class="progress__meta">
+                <span id="progress-pct">0%</span>
+                <span id="progress-char"></span>
+              </div>
+            </div>
+
+            <div class="stack">
+              <button class="btn btn--accent btn--block btn--lg" id="btn-draw">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L20 8a2.8 2.8 0 0 0-4-4L4 16v4Z"/></svg>
+                Start writing
+              </button>
+              <button class="btn btn--danger btn--block" id="btn-stop" disabled>Stop</button>
+            </div>
+
+            <div class="hint hint--danger">
+              <strong>Failsafe</strong>
+              Move the pointer into the top-left screen corner to abort instantly.
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="stack">
+              <button class="btn btn--subtle btn--block btn--sm" id="btn-goto-learn">
+                Retrain a character
+              </button>
+              <button class="btn btn--ghost btn--block btn--sm" id="btn-reset">
+                Reset all characters
+              </button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ── train view ────────────────────────────────────────────── -->
+      <section class="view" id="view-learn">
+        <div class="grid grid--learn">
+          <div class="card card--main">
+            <div class="card__head">
+              <div>
+                <h2 class="card__title">Training <span class="char-chip" id="learn-char">a</span></h2>
+                <p class="card__sub">Trace the outline. Multiple strokes are fine.</p>
+              </div>
+              <div class="card__head-actions">
+                <button class="btn btn--ghost btn--icon btn--sm" id="btn-prev" title="Previous character">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+                <button class="btn btn--ghost btn--icon btn--sm" id="btn-next" title="Next character">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="canvas-frame">
+              <canvas id="canvas" width="700" height="450"></canvas>
+              <div class="canvas-frame__empty" id="canvas-empty">Draw here</div>
+            </div>
+
+            <div class="toolbar">
+              <button class="btn btn--subtle" id="btn-undo" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h9a7 7 0 0 1 0 14H8"/></svg>
+                Undo stroke
+              </button>
+              <button class="btn btn--ghost" id="btn-clear">Clear</button>
+              <div class="toolbar__spacer"></div>
+              <button class="btn btn--ghost" id="btn-skip">Skip</button>
+              <button class="btn btn--accent" id="btn-save-letter" disabled>Save character</button>
+            </div>
+          </div>
+
+          <aside class="card card--side">
+            <h2 class="card__title">Progress</h2>
+            <div class="progress">
+              <div class="progress__track">
+                <div class="progress__fill progress__fill--ok" id="learn-progress-fill"></div>
+              </div>
+              <div class="progress__meta">
+                <span id="learn-progress-text">0 / 0</span>
+                <span id="learn-progress-pct">0%</span>
+              </div>
+            </div>
+            <p class="card__sub">Click any character to train or replace it.</p>
+            <div class="charmap" id="charmap"></div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <!-- ── AI drawer ──────────────────────────────────────────────── -->
+    <aside class="drawer" id="drawer" aria-hidden="true">
+      <header class="drawer__head">
+        <div class="drawer__title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3Z"/></svg>
+          AI Assistant
+        </div>
+        <button class="btn btn--ghost btn--icon btn--sm" id="drawer-close" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </header>
+
+      <div class="drawer__limits" id="ai-limits">Loading limits…</div>
+      <div class="chat" id="chat"></div>
+
+      <div class="chat__attachment is-hidden" id="chat-attachment">
+        <img id="chat-attachment-thumb" alt="">
+        <span id="chat-attachment-name"></span>
+        <button class="btn btn--ghost btn--icon btn--sm" id="chat-attachment-clear" aria-label="Remove image">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+
+      <form class="composer" id="composer">
+        <label class="btn btn--ghost btn--icon" title="Attach image">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="m21 16-5-5L5 20"/></svg>
+          <input type="file" id="chat-file" accept="image/*" hidden>
+        </label>
+        <textarea id="chat-input" class="composer__input" rows="1"
+                  placeholder="Ask something… (Enter sends, Shift+Enter for a new line)"></textarea>
+        <button class="btn btn--accent btn--icon" type="submit" aria-label="Send">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+               stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"/></svg>
+        </button>
+      </form>
+    </aside>
+  </div>
+</div>
+
+<div class="modal-root" id="modal-root"></div>
+<div class="toasts" id="toasts"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

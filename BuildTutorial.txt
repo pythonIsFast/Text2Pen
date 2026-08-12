@@ -1,3 +1,23 @@
-py -3.11 -m PyInstaller --onefile --noconsole Text2Pen.py
+Build (Windows)
+---------------
+The frontend in webui/ is loaded from disk at runtime, so it has to be bundled
+explicitly. On Windows the --add-data separator is a semicolon:
+
+py -3.11 -m PyInstaller --onefile --noconsole --add-data "webui;webui" Text2Pen.py
 py -3.11 -m PyInstaller --onefile --noconsole Installer.py
 py -3.11 -m PyInstaller --onefile --noconsole Update.py
+
+Build (Linux)
+-------------
+Same thing, but the separator is a colon:
+
+python3 -m PyInstaller --onefile --noconsole --add-data "webui:webui" Text2Pen.py
+
+Notes
+-----
+- backend/ is imported normally and gets picked up automatically; only webui/
+  needs --add-data because it is read as data, not imported.
+- paths.resource_dir() resolves sys._MEIPASS, so the bundled webui/ is found
+  in the onefile build as well as when running from source.
+- Running from source:  ./venv/bin/python Text2Pen.py
+- Set TEXT2PEN_DEBUG=1 to open the WebKit inspector (right click -> Inspect).
