@@ -8,19 +8,23 @@ import threading
 import io
 import hashlib
 
+from backend.paths import APP_DATA_DIR, IS_LINUX, exe_name
+
 APP_NAME = "Text2Pen"
 
 # Installation paths
-INSTALL_DIR = os.path.join(os.environ["LOCALAPPDATA"], APP_NAME)
-TEXT2PEN_PATH = os.path.join(INSTALL_DIR, "Text2Pen.exe")
-UPDATE_PATH = os.path.join(INSTALL_DIR, "Update.exe")
+INSTALL_DIR = APP_DATA_DIR
+TEXT2PEN_NAME = exe_name("Text2Pen")
+UPDATE_NAME = exe_name("Update")
+TEXT2PEN_PATH = os.path.join(INSTALL_DIR, TEXT2PEN_NAME)
+UPDATE_PATH = os.path.join(INSTALL_DIR, UPDATE_NAME)
 
 #Temp paths
 UPDATE_TEMP = UPDATE_PATH + "-newest"
 
 # URLs
-TEXT2PEN_URL = "https://github.com/pythonIsFast/Text2Pen/releases/latest/download/Text2Pen.exe"
-UPDATE_URL = "https://github.com/pythonIsFast/Text2Pen/releases/latest/download/Update.exe"
+TEXT2PEN_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{TEXT2PEN_NAME}"
+UPDATE_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{UPDATE_NAME}"
 
 class UpdateApp():
     def __init__(self, root):
@@ -46,7 +50,7 @@ class UpdateApp():
             print("Checking GitHub release...")
             hashes = self.get_release_hashes()
 
-            github_hash = hashes["Text2Pen.exe"]
+            github_hash = hashes[TEXT2PEN_NAME]
 
             if os.path.exists(TEXT2PEN_PATH):
                 local_hash = self.sha256_file(TEXT2PEN_PATH)
@@ -61,14 +65,14 @@ class UpdateApp():
                     new_hash = self.sha256_bytes(new_data)
 
                     if new_hash != github_hash:
-                        raise ValueError("Downloaded Text2Pen.exe failed SHA256 verification")
+                        raise ValueError(f"Downloaded {TEXT2PEN_NAME} failed SHA256 verification")
             else:
                 self.status_label.config(text="Downloading Text2Pen...")
                 new_data = self.download_file_ram(TEXT2PEN_URL)
                 new_hash = self.sha256_bytes(new_data)
 
                 if new_hash != github_hash:
-                    raise ValueError("Downloaded Text2Pen.exe failed SHA256 verification")
+                    raise ValueError(f"Downloaded {TEXT2PEN_NAME} failed SHA256 verification")
 
             if os.path.exists(TEXT2PEN_PATH):
                 if new_data is not None:
@@ -81,7 +85,7 @@ class UpdateApp():
                 self.write_file_once(temp_path, new_data)
                 self.replace_file(temp_path, TEXT2PEN_PATH)
             
-            github_updater_hash = hashes["Update.exe"]
+            github_updater_hash = hashes[UPDATE_NAME]
 
             if os.path.exists(UPDATE_PATH):
                 local_updater_hash = self.sha256_file(UPDATE_PATH)
@@ -95,7 +99,7 @@ class UpdateApp():
                     new_updater_hash = self.sha256_bytes(updater_data)
 
                     if new_updater_hash != github_updater_hash:
-                        raise ValueError("Downloaded Update.exe failed SHA256 verification")
+                        raise ValueError(f"Downloaded {UPDATE_NAME} failed SHA256 verification")
             else:
                 self.status_label.config(text="Downloading Updater...")
                 updater_data = self.download_file_ram(UPDATE_URL)
@@ -103,7 +107,7 @@ class UpdateApp():
                 new_updater_hash = self.sha256_bytes(updater_data)
 
                 if new_updater_hash != github_updater_hash:
-                    raise ValueError("Downloaded Update.exe failed SHA256 verification")
+                    raise ValueError(f"Downloaded {UPDATE_NAME} failed SHA256 verification")
 
             if os.path.exists(UPDATE_PATH):
                 if updater_data is not None:
@@ -162,6 +166,8 @@ class UpdateApp():
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "wb") as f:
             f.write(data)
+        if IS_LINUX:
+            os.chmod(path, 0o755)
 
     def replace_file(self, src, dst):
         try:

@@ -1,11 +1,38 @@
 import os
-import requests
+import shutil
 import tkinter as tk
 from tkinter import messagebox, ttk
-import shutil
-import win32com.client
+
+import requests
+
+from backend.paths import APP_DATA_DIR, IS_LINUX, IS_WINDOWS, ensure_app_data_dir, exe_name
+
+if IS_WINDOWS:
+    import win32com.client
+
+APP_NAME = "Text2Pen"
+
+INSTALL_DIR = APP_DATA_DIR
+EXE_NAME = exe_name("Text2Pen")
+UPDATE_NAME = exe_name("Update")
+EXE_PATH = os.path.join(INSTALL_DIR, EXE_NAME)
+UPDATE_PATH = os.path.join(INSTALL_DIR, UPDATE_NAME)
+
+DOWNLOAD_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{EXE_NAME}"
+UPDATE_URL = f"https://github.com/pythonIsFast/Text2Pen/releases/latest/download/{UPDATE_NAME}"
+
+if IS_WINDOWS:
+    STARTUP_DIR = os.path.join(
+        os.environ["APPDATA"], r"Microsoft\Windows\Start Menu\Programs\Startup"
+    )
+    START_MENU = os.path.join(os.environ["APPDATA"], r"Microsoft\Windows\Start Menu\Programs")
+else:
+    AUTOSTART_DIR = os.path.join(os.path.expanduser("~"), ".config", "autostart")
+    APPLICATIONS_DIR = os.path.join(os.path.expanduser("~"), ".local", "share", "applications")
+
 
 def create_shortcut(target, shortcut_path, working_dir):
+    """Windows Start Menu / Startup entry (a .lnk file)."""
     shell = win32com.client.Dispatch("WScript.Shell")
     shortcut = shell.CreateShortcut(shortcut_path)
     shortcut.TargetPath = target
@@ -13,26 +40,47 @@ def create_shortcut(target, shortcut_path, working_dir):
     shortcut.IconLocation = target
     shortcut.save()
 
-STARTUP_DIR = os.path.join(
-    os.environ["APPDATA"],
-    r"Microsoft\Windows\Start Menu\Programs\Startup"
-)
 
-APP_NAME = "Text2Pen"
+def create_desktop_entry(target, path, name, hidden=False, autostart=False):
+    """Linux equivalent of a shortcut: an XDG .desktop file."""
+    lines = [
+        "[Desktop Entry]",
+        "Type=Application",
+        f"Name={name}",
+        f'Exec="{target}"',
+        f"Path={os.path.dirname(target)}",
+        "Terminal=false",
+    ]
+    if hidden:
+        lines.append("NoDisplay=true")
+    if autostart:
+        lines.append("X-GNOME-Autostart-enabled=true")
+    else:
+        lines.append("Categories=Utility;")
+    with open(path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    os.chmod(path, 0o755)
 
-INSTALL_DIR = os.path.join(os.environ["LOCALAPPDATA"], APP_NAME)
-EXE_PATH = os.path.join(INSTALL_DIR, "Text2Pen.exe")
 
-DOWNLOAD_URL = "https://github.com/pythonIsFast/Text2Pen/releases/latest/download/Text2Pen.exe"
+def create_launcher(target, name):
+    """App menu entry (Start Menu shortcut / .desktop in applications/)."""
+    if IS_WINDOWS:
+        create_shortcut(target, os.path.join(START_MENU, f"{name}.lnk"), os.path.dirname(target))
+    else:
+        os.makedirs(APPLICATIONS_DIR, exist_ok=True)
+        create_desktop_entry(target, os.path.join(APPLICATIONS_DIR, f"{name}.desktop"), name)
 
-UPDATE_URL = "https://github.com/pythonIsFast/Text2Pen/releases/latest/download/Update.exe"
 
-START_MENU = os.path.join(
-            os.environ["APPDATA"],
-            r"Microsoft\Windows\Start Menu\Programs"
-        )
+def create_autostart_entry(target, name):
+    """Run-on-login entry for Update (Startup shortcut / autostart .desktop)."""
+    if IS_WINDOWS:
+        os.makedirs(STARTUP_DIR, exist_ok=True)
+        create_shortcut(target, os.path.join(STARTUP_DIR, f"{name}.lnk"), os.path.dirname(target))
+    else:
+        os.makedirs(AUTOSTART_DIR, exist_ok=True)
+        create_desktop_entry(target, os.path.join(AUTOSTART_DIR, f"{name}.desktop"), name,
+                              hidden=True, autostart=True)
 
-UPDATE_PATH = os.path.join(INSTALL_DIR, "Update.exe")
 
 def download_file(url, target_path, progress_callback=None):
     r = requests.get(url, stream=True)
@@ -49,15 +97,12 @@ def download_file(url, target_path, progress_callback=None):
                 if total and progress_callback:
                     progress_callback(int(downloaded / total * 100))
 
-def create_startup_shortcut(target, name):
-    os.makedirs(STARTUP_DIR, exist_ok=True)
+    if IS_LINUX:
+        os.chmod(target_path, 0o755)
 
-    shortcut_path = os.path.join(STARTUP_DIR, f"{name}.lnk")
-
-    create_shortcut(target, shortcut_path, os.path.dirname(target))
 
 def download_and_install(progress_var, progress_bar):
-    os.makedirs(INSTALL_DIR, exist_ok=True)
+    ensure_app_data_dir()
 
     try:
         download_file(
@@ -68,36 +113,47 @@ def download_and_install(progress_var, progress_bar):
 
         download_file(UPDATE_URL, UPDATE_PATH)
 
-        create_shortcut(
-            EXE_PATH,
-            os.path.join(START_MENU, f"{APP_NAME}.lnk"),
-            INSTALL_DIR
-        )
+        create_launcher(EXE_PATH, APP_NAME)
+        create_autostart_entry(UPDATE_PATH, "Update")
 
-        create_startup_shortcut(UPDATE_PATH, "Update")
-
-        messagebox.showinfo(
-            "Success!",
-            f"{APP_NAME} installed successfully!"
-        )
+        message = f"{APP_NAME} installed successfully!"
+        if IS_LINUX:
+            message += (
+                "\n\nOne more step: Text2Pen writes strokes via /dev/uinput, "
+                "which is root-owned by default. To use it without sudo, run:\n\n"
+                'echo \'KERNEL=="uinput", GROUP="input", MODE="0660"\' | '
+                "sudo tee /etc/udev/rules.d/99-uinput.rules\n"
+                "sudo udevadm control --reload-rules && sudo udevadm trigger\n"
+                'sudo usermod -aG input "$USER"\n\n'
+                "Then log out and back in."
+            )
+        messagebox.showinfo("Success!", message)
 
     except Exception as e:
         messagebox.showerror("Error", str(e))
 
-def uninstall():
-    #Remove automatic startup shortcut
-    path1 = os.path.join(STARTUP_DIR, "Update.lnk")
-    if os.path.exists(path1):
-        os.remove(path1)
 
-    path2 = os.path.join(START_MENU, "Text2Pen.lnk")
-    if os.path.exists(path2):
-        os.remove(path2)
+def uninstall():
+    if IS_WINDOWS:
+        shortcut_paths = [
+            os.path.join(STARTUP_DIR, "Update.lnk"),
+            os.path.join(START_MENU, f"{APP_NAME}.lnk"),
+        ]
+    else:
+        shortcut_paths = [
+            os.path.join(AUTOSTART_DIR, "Update.desktop"),
+            os.path.join(APPLICATIONS_DIR, f"{APP_NAME}.desktop"),
+        ]
+
+    for path in shortcut_paths:
+        if os.path.exists(path):
+            os.remove(path)
 
     if os.path.exists(INSTALL_DIR):
         shutil.rmtree(INSTALL_DIR)
 
     messagebox.showinfo("Uninstalled!", f"{APP_NAME} got removed.")
+
 
 def main():
     root = tk.Tk()

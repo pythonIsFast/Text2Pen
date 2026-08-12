@@ -1,0 +1,102 @@
+name: Create release
+
+# Workflow 2 of 2: runs build.yml for a fresh set of executables, renames
+# them to their final release filenames, and publishes a new GitHub Release
+# with each file uploaded as its own asset — same as every existing release,
+# so Update.exe's per-file SHA256 check keeps working. Refuses to run if the
+# tag already exists, so it can never overwrite a past release.
+#
+# Multi-line release notes don't fit well in the "Run workflow" web form
+# (it's a single-line box); use the gh CLI for those, e.g.:
+#   gh workflow run release.yml -f version=v2.8 -f release_notes="$(cat notes.md)"
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Tag/version to release, e.g. v2.8"
+        required: true
+      release_notes:
+        description: "Release notes (markdown, shown on the release page)"
+        required: true
+      prerelease:
+        description: "Mark as a pre-release"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ inputs.version }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Refuse to overwrite an existing tag/release
+        run: |
+          if git rev-parse "refs/tags/${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "::error::Tag ${{ inputs.version }} already exists. Refusing to overwrite an existing release."
+            exit 1
+          fi
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: "*-${{ inputs.version }}"
+
+      # find, not a hardcoded nested path: upload-artifact's exact internal
+      # layout for a single-file `path:` has shifted across versions, so this
+      # locates each binary by name inside its artifact folder instead of
+      # assuming where under it it landed.
+      - name: Lay out release assets with their final names
+        run: |
+          set -euo pipefail
+          mkdir -p release
+
+          copy_asset() {
+            local artifact_dir="artifacts/$1"
+            local filename="$2"
+            local found
+            found=$(find "$artifact_dir" -type f -name "$filename" | head -n1)
+            if [ -z "$found" ]; then
+              echo "::error::Could not find $filename in $artifact_dir"
+              exit 1
+            fi
+            cp "$found" "release/$filename"
+          }
+
+          copy_asset "Text2Pen-windows-${{ inputs.version }}"   "Text2Pen.exe"
+          copy_asset "Update-windows-${{ inputs.version }}"     "Update.exe"
+          copy_asset "Installer-windows-${{ inputs.version }}"  "Installer.exe"
+          copy_asset "Text2Pen-linux-${{ inputs.version }}"     "Text2Pen"
+          copy_asset "Update-linux-${{ inputs.version }}"       "Update"
+          copy_asset "Installer-linux-${{ inputs.version }}"    "Installer"
+
+          chmod +x release/Text2Pen release/Update release/Installer
+          ls -la release/
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: ${{ inputs.version }}
+          body: ${{ inputs.release_notes }}
+          prerelease: ${{ inputs.prerelease }}
+          files: |
+            release/Text2Pen.exe
+            release/Update.exe
+            release/Installer.exe
+            release/Text2Pen
+            release/Update
+            release/Installer

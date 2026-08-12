@@ -35,12 +35,20 @@ def get_app_data_dir():
     return os.path.join(_real_home(), ".local", "share", APP_NAME)
 
 
+def exe_name(base):
+    """`base` with the platform-appropriate executable suffix: Installer.py,
+    Update.py and Text2Pen.py all ship as "<name>.exe" on Windows and a
+    plain, extension-less "<name>" on Linux (matches the release asset
+    names uploaded by .github/workflows/build.yml)."""
+    return f"{base}.exe" if IS_WINDOWS else base
+
+
 APP_DATA_DIR = get_app_data_dir()
 
 LETTER_DB_FILE = os.path.join(APP_DATA_DIR, "letter_db.json")
 SETTINGS_FILE = os.path.join(APP_DATA_DIR, "settingsDB.json")
 TEXT_FILE = os.path.join(APP_DATA_DIR, "saved_text.txt")
-UPDATE_EXE = os.path.join(APP_DATA_DIR, "Update.exe")
+UPDATE_EXE = os.path.join(APP_DATA_DIR, exe_name("Update"))
 
 
 def resource_dir():

@@ -54,7 +54,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            python3-gi gir1.2-webkit2-4.1 \
+            python3-gi gir1.2-webkit2-4.1 python3-tk \
             gir1.2-gst-plugins-base-1.0 gstreamer1.0-plugins-base \
             gstreamer1.0-plugins-good gstreamer1.0-pipewire \
             python3-dbus libgirepository1.0-dev
@@ -75,13 +75,7 @@ jobs:
       - name: Build Update
         run: pyinstaller --onefile --noconsole --name Update Update.py
 
-      # Installer.py still does `import win32com.client` and reads
-      # LOCALAPPDATA/APPDATA at module level — it's Windows-only code, not
-      # just a Windows-only build target. PyInstaller can't resolve
-      # win32com.client on Linux at all, so this step is Windows-only until
-      # Installer.py itself is adapted; drop the `if:` once that's done.
-      - name: Build Installer (Windows only for now)
-        if: matrix.label == 'windows'
+      - name: Build Installer
         run: pyinstaller --onefile --noconsole --name Installer Installer.py
 
       - name: Upload Text2Pen artifact
@@ -99,9 +93,8 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Installer artifact
-        if: matrix.label == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: Installer-${{ matrix.label }}${{ inputs.version != '' && format('-{0}', inputs.version) || '' }}
-          path: dist/Installer.exe
+          path: dist/Installer${{ matrix.label == 'windows' && '.exe' || '' }}
           if-no-files-found: error
