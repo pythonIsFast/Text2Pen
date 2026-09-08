@@ -35,10 +35,7 @@ jobs:
 
   release:
     needs: build
-    # Self-hosted, same as build.yml's Linux leg. Needs `git` on PATH for the
-    # tag check below (actions/checkout itself can fall back to the REST API
-    # without it, but this job's own script can't).
-    runs-on: [self-hosted, Linux]
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
