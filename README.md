@@ -1,6 +1,6 @@
 # Text2Pen
 
-Text2Pen is a Windows tool that converts typed text into handwritten-style input directly inside Microsoft OneNote.
+Text2Pen is a tool that converts typed text into handwritten-style input directly inside Microsoft OneNote (Windows) and also supports Linux.
 
 ---
 
@@ -59,7 +59,7 @@ Run `Installer.exe` again and click **Uninstall**. All files and shortcuts are r
 
 ## ⚠️ Limitations
 
-- **Windows only** — Text2Pen uses the Win32 API and only runs on Windows (Linux build coming soon!).
+- **Windows and Linux** — Text2Pen supports Windows and Linux builds.
 - **Requires Microsoft OneNote** — the desktop or Web version must be open and in focus when writing.
 - **Backend / AI features temporarily unavailable** — some backend-dependent features (AI chat, AI text generation) are currently disabled due to legal reasons.
 
