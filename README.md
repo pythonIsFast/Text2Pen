@@ -59,7 +59,6 @@ Run `Installer.exe` again and click **Uninstall**. All files and shortcuts are r
 
 ## ⚠️ Limitations
 
-- **Windows and Linux** — Text2Pen supports Windows and Linux builds.
 - **Requires Microsoft OneNote** — the desktop or Web version must be open and in focus when writing.
 - **Backend / AI features temporarily unavailable** — some backend-dependent features (AI chat, AI text generation) are currently disabled due to legal reasons.
 
